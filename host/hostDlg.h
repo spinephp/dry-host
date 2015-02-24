@@ -37,6 +37,9 @@ public:
 protected:
 	HICON m_hIcon;
 
+	CBrush m_redbrush,m_bluebrush;  
+	COLORREF m_redcolor,m_bluecolor,m_textcolor;  
+
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -60,7 +63,6 @@ public:
 	CString m_cbxStopbit;
 	float m_lbTemperature;
 	float m_lbSettingtemperature;
-	afx_msg void OnCbnSelchangeCombo7();
 
 	BOOL m_bPortOpen;
 	CSerialPort m_SerialPort;
@@ -74,4 +76,6 @@ public:
 	afx_msg void OnBnClickedButtonCloseport();
 	afx_msg void OnCbnSelchangeComboVerifybit();
 	afx_msg void OnTimer(UINT nIDEvent);
+	CString m_edtRunning;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

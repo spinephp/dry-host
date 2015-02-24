@@ -59,6 +59,7 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_cbxStopbit(_T("1"))
 	, m_lbTemperature(0)
 	, m_lbSettingtemperature(-100)
+	, m_edtRunning(_T("未运行"))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -79,13 +80,13 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_DATABIT, m_cbDatabit);
 	DDX_Control(pDX, IDC_COMBO_STOPBIT, m_cbStopbit);
 	DDX_Control(pDX, IDC_EDIT_TEMPERATURE, m_lblTemperature);
+	DDX_Text(pDX, IDC_EDIT_RUNNING,m_edtRunning);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_CBN_SELCHANGE(IDC_COMBO7, &ChostDlg::OnCbnSelchangeCombo7)
 
 	//{{AFX_MSG_MAP(ChostDlg)
 	ON_MESSAGE(WM_COMM_RXCHAR,OnComm)
@@ -93,7 +94,7 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_BN_CLICKED(IDC_BUTTON_OPENPORT, &ChostDlg::OnBnClickedButtonOpenport)
 	ON_BN_CLICKED(IDC_BUTTON_CLOSEPORT, &ChostDlg::OnBnClickedButtonCloseport)
-	ON_CBN_SELCHANGE(IDC_COMBO_VERIFYBIT, &ChostDlg::OnCbnSelchangeComboVerifybit)
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -145,6 +146,12 @@ BOOL ChostDlg::OnInitDialog()
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
 	v_index = 0;
+
+	m_redcolor=RGB(255,0,0);                      // 红色  
+	m_bluecolor=RGB(0,0,255);                     // 蓝色  
+	m_textcolor=RGB(255,255,255);                 // 文本颜色设置为白色  
+	m_redbrush.CreateSolidBrush(m_redcolor);      // 红色背景色  
+	m_bluebrush.CreateSolidBrush(m_bluecolor);    // 蓝色背景色  
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -199,12 +206,6 @@ HCURSOR ChostDlg::OnQueryDragIcon()
 }
 
 
-
-void ChostDlg::OnCbnSelchangeCombo7()
-{
-	// TODO: 在此添加控件通知处理程序代码
-}
-
 //字符接收消息响应函数
 LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 {
@@ -222,10 +223,13 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					if(m_lbTemperature < m_lbSettingtemperature-2){
 						// 温度低
 						Beep (1000,1000);
+						m_edtRunning = "温度低，暂停";
 					}else if(m_lbTemperature > m_lbSettingtemperature+2){
 						// 温度高
+						m_edtRunning = "温度高!!!";
 						Beep (1000,1000);
 					}else{ // 温度正常
+						m_edtRunning = "正常";
 					}
 				}
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
@@ -380,7 +384,49 @@ void ChostDlg::OnBnClickedButtonCloseport()  //关闭串口按钮消息响应函数
 }
 
 
-void ChostDlg::OnCbnSelchangeComboVerifybit()
+
+HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
-	// TODO: 在此添加控件通知处理程序代码
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+	// TODO: Change any attributes of the DC here  
+	switch (nCtlColor) //对所有同一类型的控件进行判断  
+	{  
+	   // process my edit controls by ID.  
+	case CTLCOLOR_EDIT:  
+	case CTLCOLOR_MSGBOX://假设控件是文本框或者消息框，则进入下一个switch  
+	   switch (pWnd->GetDlgCtrlID())//对某一个特定控件进行判断  
+	   {      
+		// first CEdit control ID  
+	   case IDC_EDIT_TEMPERATURE:         // 第一个文本框  
+		// here  
+		pDC->SetBkColor(m_redcolor);    // change the background  
+		// color [background colour  
+		// of the text ONLY]  
+		pDC->SetTextColor(m_textcolor); // change the text color  
+		hbr = (HBRUSH) m_redbrush;    // apply the blue brush  
+		// [this fills the control  
+		// rectangle]  
+		break;    
+		// second CEdit control ID  
+	   case IDC_EDIT_SETTINGTEMPERATURE:         // 第二个文本框  
+		// but control is still  
+		// filled with the brush  
+		// color!  
+		pDC->SetBkMode(TRANSPARENT);   // make background  
+		// transparent [only affects  
+		// the TEXT itself]  
+		pDC->SetTextColor(m_textcolor); // change the text color  
+		hbr = (HBRUSH) m_bluebrush;     // apply the red brush  
+		// [this fills the control  
+		// rectangle]  
+		break;  
+	   default:  
+		hbr=CDialog::OnCtlColor(pDC,pWnd,nCtlColor);  
+		break;  
+	   }  
+	   break;  
+	}  
+	// TODO: Return a different brush if the default is not desired  
+	return hbr;  
 }

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RS232", "..\RS232\RS232\RS232.vcxproj", "{C53DDCC5-6BEB-4022-9BDD-25104EFACA95}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "host", "..\dry-host\host\host.vcxproj", "{C53DDCC5-6BEB-4022-9BDD-25104EFACA95}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
