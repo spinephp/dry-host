@@ -60,6 +60,7 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_lbTemperature(0)
 	, m_lbSettingtemperature(-100)
 	, m_edtRunning(_T("未运行"))
+	, m_edtArea(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -74,13 +75,14 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_CBString(pDX, IDC_COMBO_STOPBIT, m_cbxStopbit);
 	DDX_Text(pDX, IDC_EDIT_TEMPERATURE, m_lbTemperature);
 	DDX_Text(pDX, IDC_EDIT_SETTINGTEMPERATURE, m_lbSettingtemperature);
+	DDX_Text(pDX, IDC_EDIT_RUNNING,m_edtRunning);
+	DDX_Text(pDX, IDC_EDIT_AREA, m_edtArea);
 	DDX_Control(pDX, IDC_COMBO_PORT, m_cbPort);
 	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_cbBaudrate);
 	DDX_Control(pDX, IDC_COMBO_VERIFYBIT, m_cbVerifybit);
 	DDX_Control(pDX, IDC_COMBO_DATABIT, m_cbDatabit);
 	DDX_Control(pDX, IDC_COMBO_STOPBIT, m_cbStopbit);
 	DDX_Control(pDX, IDC_EDIT_TEMPERATURE, m_lblTemperature);
-	DDX_Text(pDX, IDC_EDIT_RUNNING,m_edtRunning);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
@@ -149,9 +151,12 @@ BOOL ChostDlg::OnInitDialog()
 
 	m_redcolor=RGB(255,0,0);                      // 红色  
 	m_bluecolor=RGB(0,0,255);                     // 蓝色  
+	m_greencolor=RGB(0,255,0);                     // 绿色  
 	m_textcolor=RGB(255,255,255);                 // 文本颜色设置为白色  
 	m_redbrush.CreateSolidBrush(m_redcolor);      // 红色背景色  
 	m_bluebrush.CreateSolidBrush(m_bluecolor);    // 蓝色背景色  
+	m_greenbrush.CreateSolidBrush(m_greencolor);    // 蓝色背景色  
+	m_yellowbrush.CreateSolidBrush(RGB(0,255,255));    // 黄色背景色  
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -220,17 +225,39 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				str.Format("%5.1f",(*(WORD*)(v_portin+2))*0.0625); 
 				m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
 				if(m_curLineNo>-1){// 干燥已开始
+					m_Pause = FALSE;
+					if(((int)m_lbSettingtemperature)==-100){
+						char tem[20];
+						m_lbSettingtemperature = m_lbTemperature;
+						sprintf(tem,"%d℃ %s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
+						m_edtArea = tem;
+					}
 					if(m_lbTemperature < m_lbSettingtemperature-2){
 						// 温度低
 						Beep (1000,1000);
-						m_edtRunning = "温度低，暂停";
+						m_edtRunning = "温度低";
+						m_runbrush = &m_yellowbrush;
+						if(m_lbTemperature < m_lbSettingtemperature-3){
+							m_edtRunning = "温度低，暂停";
+							m_runbrush = &m_redbrush;
+							m_Pause = TRUE;
+						}
 					}else if(m_lbTemperature > m_lbSettingtemperature+2){
 						// 温度高
-						m_edtRunning = "温度高!!!";
+						m_edtRunning = "温度高";
 						Beep (1000,1000);
+						m_runbrush = &m_yellowbrush;
+						if(m_lbTemperature > m_lbSettingtemperature+3){
+							m_edtRunning = "温度高!!!";
+							m_runbrush = &m_redbrush;
+						}
 					}else{ // 温度正常
 						m_edtRunning = "正常";
+						m_runbrush = &m_greenbrush;
 					}
+				}else{
+					m_edtRunning = "未开始";
+					m_runbrush = NULL;
 				}
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
@@ -241,6 +268,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				case 0: // 干燥未进行
 					m_curLineNo = 0;
 					m_curLineTime = 0;
+					m_TotalTime = 0;
 					send[1] = cmdSettingLineNo;
 					send[2] = 1;
 					send[3] = 0;
@@ -249,7 +277,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					send[2] = 0;
 					send[3] = 0;
 					m_SerialPort.WriteToPort(send,5); // 设置下位机当前运行状态为 0(升温)
-					SetTimer(1,600000,NULL);
+					SetTimer(1,60000,NULL);
 					break;
 				}
 				break;
@@ -262,7 +290,9 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 
 void  ChostDlg::OnTimer(UINT nIDEvent)
 {
+	char tem[20];
 	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
+	float at = 0.0;
 	switch(nIDEvent){
 	case 0:
 		send[1] = cmdGetTemperature;
@@ -271,30 +301,40 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		m_SerialPort.WriteToPort(send,5); // 通知下位机发送当前实际温度
 		break;
 	case 1:
-		m_curLineTime++;
-		if(m_dryLine[m_curLineNo][1]!=0){ // 升温
-			short int tem = m_lbSettingtemperature;
-			m_lbSettingtemperature += m_dryLine[m_curLineNo][1]/60.0;
-			if((short int)m_lbSettingtemperature<m_dryLine[m_curLineNo][0]){
-				if(tem!=(short int)m_lbSettingtemperature){
+		m_TotalTime++;
+		if(!m_Pause){ // 程序未暂停
+			m_curLineTime++;
+			at = m_dryLine[m_curLineNo][1]/60.0;
+		}
+		if(m_dryLine[m_curLineNo][1]){ // 升温
+			float t = m_lbSettingtemperature;
+			t += at;
+			if((short int)t<m_dryLine[m_curLineNo][0]){// 未升到段指定温度
+				if((short int)t > (short int)m_lbSettingtemperature){
 					send[1] = cmdSettingTemperature;
-					*(WORD*)(send+2) = m_lbSettingtemperature;
-					m_SerialPort.WriteToPort(send,5);
+					*(WORD*)(send+2) = (short int)t;
+					m_SerialPort.WriteToPort(send,5);// 传送当前设定温度给下位机
 				}
-			}else{
+				m_lbSettingtemperature = t;
+			}else{ // 升温结束
 				m_curLineNo++;
 				m_curLineTime = 0;
 				send[1] = cmdSettingTemperature;
 				*(WORD*)(send+2) = m_dryLine[m_curLineNo][0];
 				m_SerialPort.WriteToPort(send,5);// 传送当前设定温度给下位机
+
+				sprintf(tem,"%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[1]);
+				m_edtArea = tem;
 			}
-			UpdateData(FALSE);     //读入编辑框的数据
-		}else if(m_curLineTime>m_dryLine[m_curLineNo][2]*60){ // 保温
+		}else if(m_curLineTime>m_dryLine[m_curLineNo][2]*60){ // 保温时间到
 			m_curLineTime = 0;
-			if(m_curLineNo<8){
+			if(m_curLineNo<8){ // 干燥未结束
 				send[1] = cmdSettingTemperature;
 				*(WORD*)(send+2) = m_dryLine[m_curLineNo++][0];
 				m_SerialPort.WriteToPort(send,5); // 传送当前设定温度给下位机
+
+				sprintf(tem,"%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
+				m_edtArea = tem;
 			}else{
 				KillTimer(1);
 				send[1] = cmdSettingLineNo;
@@ -305,6 +345,7 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 				m_SerialPort.WriteToPort(send,5); // 设置下位机当前运行状态为 4(结束)
 			}
 		}
+		UpdateData(FALSE);     //读入编辑框的数据
 		break;
 	}
 	v_index = 0;
@@ -355,13 +396,14 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函数
 	UINT nStopbit = m_cbStopbit.GetCurSel();
 	if(m_SerialPort.InitPort(m_hWnd,nPort,nBuad,"NOE"[iParity],nDatabit,nStopbit,EV_RXFLAG | EV_RXCHAR,512))
 	{
-		char send[5] = {0xfd,cmdSettingLineNo,0xff,0x0,0xfe};
+		char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
 		m_curLineNo = -1;
 		SetTimer(0,10000,NULL);
 		m_SerialPort.StartMonitoring();  //启动串口通信检测线程函数
 		send[1] = cmdGetTemperature;
 		m_SerialPort.WriteToPort(send,5); // 取下位机当前实际温度
 		send[1] = cmdSettingLineNo;
+		send[2] = 0xff;
 		m_SerialPort.WriteToPort(send,5); // 取下位机当前段号
 	}
 	else
@@ -397,8 +439,7 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	case CTLCOLOR_MSGBOX://假设控件是文本框或者消息框，则进入下一个switch  
 	   switch (pWnd->GetDlgCtrlID())//对某一个特定控件进行判断  
 	   {      
-		// first CEdit control ID  
-	   case IDC_EDIT_TEMPERATURE:         // 第一个文本框  
+	   case IDC_EDIT_TEMPERATURE:         // 实际温度文本框  
 		// here  
 		pDC->SetBkColor(m_redcolor);    // change the background  
 		// color [background colour  
@@ -408,22 +449,20 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		// [this fills the control  
 		// rectangle]  
 		break;    
-		// second CEdit control ID  
-	   case IDC_EDIT_SETTINGTEMPERATURE:         // 第二个文本框  
-		// but control is still  
-		// filled with the brush  
-		// color!  
-		pDC->SetBkMode(TRANSPARENT);   // make background  
-		// transparent [only affects  
-		// the TEXT itself]  
+	   case IDC_EDIT_SETTINGTEMPERATURE:         // 设定温度文本框  
+		// but control is still filled with the brush color!  
+		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
 		pDC->SetTextColor(m_textcolor); // change the text color  
-		hbr = (HBRUSH) m_bluebrush;     // apply the red brush  
-		// [this fills the control  
-		// rectangle]  
+		hbr = (HBRUSH) m_bluebrush;     // apply the red brush [this fills the control rectangle]  
 		break;  
-	   default:  
-		hbr=CDialog::OnCtlColor(pDC,pWnd,nCtlColor);  
-		break;  
+	   case IDC_EDIT_RUNNING:         // 设定温度文本框  
+		   if(m_runbrush){
+				// but control is still filled with the brush color!  
+				pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
+				//pDC->SetTextColor(m_textcolor); // change the text color  
+				hbr = (HBRUSH) *m_runbrush;     // apply the red brush [this fills the control rectangle]  
+		   }
+		   break;  
 	   }  
 	   break;  
 	}  

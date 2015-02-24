@@ -37,8 +37,8 @@ public:
 protected:
 	HICON m_hIcon;
 
-	CBrush m_redbrush,m_bluebrush;  
-	COLORREF m_redcolor,m_bluecolor,m_textcolor;  
+	CBrush m_redbrush,m_bluebrush,m_greenbrush,m_yellowbrush,*m_runbrush;  
+	COLORREF m_redcolor,m_bluecolor,m_greencolor,m_textcolor;  
 
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
@@ -53,6 +53,7 @@ private:
 	int m_curLineNo; // 当前干燥曲线段号
 	int m_curLineTime; // 当前段号运行时间(分)
 	int m_TotalTime; // 干燥曲线运行总时间(分)
+	BOOL m_Pause; // 程序暂停
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
 
 public:
@@ -78,4 +79,5 @@ public:
 	afx_msg void OnTimer(UINT nIDEvent);
 	CString m_edtRunning;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	CString m_edtArea;
 };
