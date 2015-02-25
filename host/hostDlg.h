@@ -53,7 +53,15 @@ private:
 	int m_curLineNo; // 当前干燥曲线段号
 	int m_curLineTime; // 当前段号运行时间(分)
 	int m_TotalTime; // 干燥曲线运行总时间(分)
+	long int m_TotalTimes; // 干燥曲线运行总时间(分)
+	int m_curLinePauseTime; // 当前段号运行时间(分)
+	int m_TotalPauseTime; // 干燥曲线运行总时间(分)
+	int m_dataInvalid; // 无效的传输数据数量
 	BOOL m_Pause; // 程序暂停
+
+	CDC m_dcMem,m_dcBack; //缓冲DC和背景DC
+	CPtrArray m_ptrArray[2];
+	int m_nLeft, m_nTop, m_nWidth, m_nHeight;
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
 
 public:
@@ -80,4 +88,8 @@ public:
 	CString m_edtRunning;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	CString m_edtArea;
+	CString m_edtAreaTime;
+	CString m_edtRunTime;
+	CString m_edtAreaPauseTime;
+	CString m_edtRunPauseTime;
 };

@@ -12,6 +12,18 @@
 #define new DEBUG_NEW
 #endif
 
+class CGraph 
+{
+public:
+	CPoint m_pt;//起点
+	UINT m_nDrawType;//绘画类型
+	CGraph();
+	CGraph(UINT m_nDrawType,CPoint m_pt){
+		this->m_nDrawType = m_nDrawType;
+		this->m_pt = m_pt;
+	};//此为构造函数。
+	virtual ~CGraph(){};
+};
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -61,6 +73,10 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_lbSettingtemperature(-100)
 	, m_edtRunning(_T("未运行"))
 	, m_edtArea(_T(""))
+	, m_edtAreaTime(_T("0:0"))
+	, m_edtRunTime(_T("0:0"))
+	, m_edtAreaPauseTime(_T("0:0"))
+	, m_edtRunPauseTime(_T("0:0"))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -83,6 +99,10 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_DATABIT, m_cbDatabit);
 	DDX_Control(pDX, IDC_COMBO_STOPBIT, m_cbStopbit);
 	DDX_Control(pDX, IDC_EDIT_TEMPERATURE, m_lblTemperature);
+	DDX_Text(pDX, IDC_EDIT_AREATIME, m_edtAreaTime);
+	DDX_Text(pDX, IDC_EDIT_RUNTIME, m_edtRunTime);
+	DDX_Text(pDX, IDC_EDIT_AREAPAUSETIME, m_edtAreaPauseTime);
+	DDX_Text(pDX, IDC_EDIT_RUNPAUSETIME, m_edtRunPauseTime);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
@@ -156,7 +176,26 @@ BOOL ChostDlg::OnInitDialog()
 	m_redbrush.CreateSolidBrush(m_redcolor);      // 红色背景色  
 	m_bluebrush.CreateSolidBrush(m_bluecolor);    // 蓝色背景色  
 	m_greenbrush.CreateSolidBrush(m_greencolor);    // 蓝色背景色  
-	m_yellowbrush.CreateSolidBrush(RGB(0,255,255));    // 黄色背景色  
+	m_yellowbrush.CreateSolidBrush(RGB(255,255,0));    // 黄色背景色  
+
+	CRect rect;
+	GetDlgItem(IDC_STATIC_RUNNINGTIME)->GetWindowRect(&rect);//获取控件相对于屏幕的位置
+	ScreenToClient(rect);//转化为对话框上的相对位置
+	m_nLeft = rect.left+10;
+	m_nTop = rect.top+20;
+	m_nWidth = rect.Width()-20;
+	m_nHeight = rect.Height()-100;
+
+    m_dcMem.CreateCompatibleDC(GetDC());
+	//m_dcBack.CreateCompatibleDC(GetDC());
+	CBitmap tmp,tmpp;
+	//tmp.CreateCompatibleBitmap(GetDC(), m_nWidth, m_nHeight);
+	tmpp.CreateCompatibleBitmap(GetDC(), m_nWidth, m_nHeight);
+	//m_dcBack.SelectObject(&tmp);
+	m_dcMem.SelectObject(&tmpp);
+	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
+	//tmp.DeleteObject();
+	tmpp.DeleteObject();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -199,6 +238,8 @@ void ChostDlg::OnPaint()
 	}
 	else
 	{
+		CPaintDC dc(this); // 用于绘制的设备上下文
+		//GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 10, 20, SRCCOPY);
 		CDialogEx::OnPaint();
 	}
 }
@@ -219,47 +260,67 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 	if(v_portin[v_index-1]==0xfe && v_index==5){ //接收完毕
 		CString str; 
 		BYTE cmd = v_portin[1];
+		short int temperature;
 		v_index = 0;
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
-				str.Format("%5.1f",(*(WORD*)(v_portin+2))*0.0625); 
-				m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
-				if(m_curLineNo>-1){// 干燥已开始
-					m_Pause = FALSE;
-					if(((int)m_lbSettingtemperature)==-100){
-						char tem[20];
-						m_lbSettingtemperature = m_lbTemperature;
-						sprintf(tem,"%d℃ %s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
-						m_edtArea = tem;
-					}
-					if(m_lbTemperature < m_lbSettingtemperature-2){
-						// 温度低
-						Beep (1000,1000);
-						m_edtRunning = "温度低";
-						m_runbrush = &m_yellowbrush;
-						if(m_lbTemperature < m_lbSettingtemperature-3){
-							m_edtRunning = "温度低，暂停";
-							m_runbrush = &m_redbrush;
-							m_Pause = TRUE;
+				temperature = *(short int*)(v_portin+2);
+				if(temperature > -800 && temperature < 3200){ // 数据在 -50 - 200℃ 之间有效
+					str.Format("%5.1f",temperature*0.0625); 
+					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
+					if(m_curLineNo>-1){// 干燥已开始
+						m_Pause = FALSE;
+						if(((int)m_lbSettingtemperature)==-100){
+							m_lbSettingtemperature = m_lbTemperature;
+							m_edtArea.Format("%d℃ %s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
 						}
-					}else if(m_lbTemperature > m_lbSettingtemperature+2){
-						// 温度高
-						m_edtRunning = "温度高";
-						Beep (1000,1000);
-						m_runbrush = &m_yellowbrush;
-						if(m_lbTemperature > m_lbSettingtemperature+3){
-							m_edtRunning = "温度高!!!";
-							m_runbrush = &m_redbrush;
+						
+						if(m_lbTemperature < m_lbSettingtemperature-2){
+							// 温度低
+							Beep (1000,1000);
+							m_edtRunning = "温度低";
+							m_runbrush = &m_yellowbrush;
+							if(m_lbTemperature < m_lbSettingtemperature-3){
+								m_edtRunning = "温度低，暂停";
+								m_runbrush = &m_redbrush;
+								m_Pause = TRUE;
+							}
+						}else if(m_lbTemperature > m_lbSettingtemperature+2){
+							// 温度高
+							m_edtRunning = "温度高";
+							Beep(1000,1000);
+							m_runbrush = &m_yellowbrush;
+							if(m_lbTemperature > m_lbSettingtemperature+3){
+								m_edtRunning = "温度高!!!";
+								m_runbrush = &m_redbrush;
+							}
+						}else{ // 温度正常
+							m_edtRunning = "正常";
+							m_runbrush = &m_greenbrush;
 						}
-					}else{ // 温度正常
-						m_edtRunning = "正常";
-						m_runbrush = &m_greenbrush;
+
+						CPoint pt;
+						pt.x = m_TotalTimes;
+						pt.y = m_lbTemperature;
+						CGraph *pGraph=new CGraph(0,pt);
+						m_ptrArray[0].Add(pGraph);
+						//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// 绘制背景
+						CGraph *g = (CGraph *)m_ptrArray[0].GetAt(0);
+						m_dcMem.MoveTo(g->m_pt);
+						for(int i=1;i<m_ptrArray[0].GetSize();i++){
+							g = (CGraph *)m_ptrArray[0].GetAt(i);
+							m_dcMem.LineTo(g->m_pt);
+						}
+						//Invalidate();
+						GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+					}else{
+						m_edtRunning = "未开始";
+						m_runbrush = NULL;
 					}
+					UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				}else{
-					m_edtRunning = "未开始";
-					m_runbrush = NULL;
+					m_dataInvalid++;
 				}
-				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
 			case cmdSettingTemperature: // 下位机当前的设定温度
 				break;
@@ -269,6 +330,10 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					m_curLineNo = 0;
 					m_curLineTime = 0;
 					m_TotalTime = 0;
+					m_TotalTimes = 0;
+					m_curLinePauseTime = 0;
+					m_TotalPauseTime = 0;
+					m_dataInvalid = 0;
 					send[1] = cmdSettingLineNo;
 					send[2] = 1;
 					send[3] = 0;
@@ -299,13 +364,21 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		send[2] = 0;
 		send[3] = 0;
 		m_SerialPort.WriteToPort(send,5); // 通知下位机发送当前实际温度
+		m_TotalTimes++;
 		break;
 	case 1:
 		m_TotalTime++;
-		if(!m_Pause){ // 程序未暂停
+		if(m_Pause){ // 程序暂停
+			m_curLinePauseTime++;
+			m_TotalPauseTime++;
+		}else{ // 程序未暂停
 			m_curLineTime++;
 			at = m_dryLine[m_curLineNo][1]/60.0;
 		}
+		m_edtRunTime.Format("%2d:%02d",m_TotalTime/60,m_TotalTime%60);
+		m_edtAreaTime.Format("%2d:%02d",m_curLineTime/60,m_curLineTime%60);
+		m_edtRunPauseTime.Format("%2d:%02d",m_TotalPauseTime/60,m_TotalPauseTime%60);
+		m_edtAreaPauseTime.Format("%2d:%02d",m_curLinePauseTime/60,m_curLinePauseTime%60);
 		if(m_dryLine[m_curLineNo][1]){ // 升温
 			float t = m_lbSettingtemperature;
 			t += at;
@@ -319,22 +392,22 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 			}else{ // 升温结束
 				m_curLineNo++;
 				m_curLineTime = 0;
+				m_curLinePauseTime = 0;
 				send[1] = cmdSettingTemperature;
 				*(WORD*)(send+2) = m_dryLine[m_curLineNo][0];
 				m_SerialPort.WriteToPort(send,5);// 传送当前设定温度给下位机
 
-				sprintf(tem,"%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[1]);
-				m_edtArea = tem;
+				m_edtArea.Format("%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[1]);
 			}
 		}else if(m_curLineTime>m_dryLine[m_curLineNo][2]*60){ // 保温时间到
 			m_curLineTime = 0;
+			m_curLinePauseTime = 0;
 			if(m_curLineNo<8){ // 干燥未结束
 				send[1] = cmdSettingTemperature;
 				*(WORD*)(send+2) = m_dryLine[m_curLineNo++][0];
 				m_SerialPort.WriteToPort(send,5); // 传送当前设定温度给下位机
 
-				sprintf(tem,"%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
-				m_edtArea = tem;
+				m_edtArea.Format("%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
 			}else{
 				KillTimer(1);
 				send[1] = cmdSettingLineNo;
@@ -454,6 +527,13 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
 		pDC->SetTextColor(m_textcolor); // change the text color  
 		hbr = (HBRUSH) m_bluebrush;     // apply the red brush [this fills the control rectangle]  
+		break;  
+	   case IDC_EDIT_AREAPAUSETIME:         // 设定温度文本框  
+	   case IDC_EDIT_RUNPAUSETIME:         // 设定温度文本框  
+		// but control is still filled with the brush color!  
+		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
+		//pDC->SetTextColor(m_textcolor); // change the text color  
+		hbr = (HBRUSH) m_yellowbrush;     // apply the red brush [this fills the control rectangle]  
 		break;  
 	   case IDC_EDIT_RUNNING:         // 设定温度文本框  
 		   if(m_runbrush){
