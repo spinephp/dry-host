@@ -168,6 +168,8 @@ BOOL ChostDlg::OnInitDialog()
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
 	v_index = 0;
+	v_lastTemperature = -100;
+	m_smooth = FALSE;
 
 	m_redcolor=RGB(255,0,0);                      // 红色  
 	m_bluecolor=RGB(0,0,255);                     // 蓝色  
@@ -179,24 +181,31 @@ BOOL ChostDlg::OnInitDialog()
 	m_yellowbrush.CreateSolidBrush(RGB(255,255,0));    // 黄色背景色  
 
 	CRect rect;
+	CPaintDC dc(this);
 	GetDlgItem(IDC_STATIC_RUNNINGTIME)->GetWindowRect(&rect);//获取控件相对于屏幕的位置
 	ScreenToClient(rect);//转化为对话框上的相对位置
-	m_nLeft = rect.left+10;
+	m_nLeft = rect.left+40;
 	m_nTop = rect.top+20;
-	m_nWidth = rect.Width()-20;
-	m_nHeight = rect.Height()-100;
+	m_nWidth = rect.Width()-50;
+	m_nHeight = rect.Height()-140;
 
-    m_dcMem.CreateCompatibleDC(GetDC());
+    m_dcMem.CreateCompatibleDC(&dc);
 	//m_dcBack.CreateCompatibleDC(GetDC());
 	CBitmap tmp,tmpp;
 	//tmp.CreateCompatibleBitmap(GetDC(), m_nWidth, m_nHeight);
-	tmpp.CreateCompatibleBitmap(GetDC(), m_nWidth, m_nHeight);
+	tmpp.CreateCompatibleBitmap(&dc, m_nWidth, m_nHeight);
 	//m_dcBack.SelectObject(&tmp);
 	m_dcMem.SelectObject(&tmpp);
 	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
 	//tmp.DeleteObject();
 	tmpp.DeleteObject();
-
+	
+	m_dcMem.SetMapMode(MM_ANISOTROPIC);
+	m_dcMem.SetViewportExt(m_nWidth, m_nHeight);
+	m_dcMem.SetWindowExt(m_nWidth, -m_nHeight);
+	m_dcMem.SetViewportOrg(0,0);
+	m_dcMem.SetWindowOrg(0,m_nHeight);
+	
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -239,7 +248,23 @@ void ChostDlg::OnPaint()
 	else
 	{
 		CPaintDC dc(this); // 用于绘制的设备上下文
-		//GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 10, 20, SRCCOPY);
+		CSize size;
+		for(int n=-20,i=m_nTop+m_nHeight;i>60;i-=20,n+=20){
+			char s[5];
+			dc.MoveTo(m_nLeft-5,i);
+			dc.LineTo(m_nLeft,i);
+			sprintf(s,"%d",n);
+			size = dc.GetTextExtent(s,strlen(s));
+			dc.TextOutA(m_nLeft-7-size.cx,i-size.cy/2,s,strlen(s));
+		}
+		for(int n=0,i=m_nLeft;i<m_nLeft+m_nWidth-60;i+=60,n++){
+			char s[5];
+			dc.MoveTo(i,m_nTop+m_nHeight);
+			dc.LineTo(i,m_nTop+m_nHeight+5);
+			sprintf(s,"%d",n);
+			size = dc.GetTextExtent(s,strlen(s));
+			dc.TextOutA(i-size.cx/2,m_nTop+m_nHeight+7,s,strlen(s));
+		}
 		CDialogEx::OnPaint();
 	}
 }
@@ -265,7 +290,10 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
 				temperature = *(short int*)(v_portin+2);
-				if(temperature > -800 && temperature < 3200){ // 数据在 -50 - 200℃ 之间有效
+				if(v_lastTemperature==-100)
+					v_lastTemperature = temperature;
+				if(m_smooth && temperature > v_lastTemperature-48 && temperature < v_lastTemperature+48 || !m_smooth && temperature > -800 && temperature < 3200){ // 设置阀值为 10 秒内温度变化在 3℃ 之内，为正常，否则认为是由其它因素造成的误差
+					v_lastTemperature = temperature;
 					str.Format("%5.1f",temperature*0.0625); 
 					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
 					if(m_curLineNo>-1){// 干燥已开始
@@ -299,20 +327,26 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 							m_runbrush = &m_greenbrush;
 						}
 
-						CPoint pt;
-						pt.x = m_TotalTimes;
-						pt.y = m_lbTemperature;
+						CPoint pt(m_TotalTimes,m_lbTemperature+20);
+						CPoint pt1(m_TotalTimes,m_lbSettingtemperature+20);
+						m_dcMem.DPtoLP(&pt);
+						m_dcMem.DPtoLP(&pt1);
 						CGraph *pGraph=new CGraph(0,pt);
+						CGraph *pGraph1=new CGraph(0,pt1);
 						m_ptrArray[0].Add(pGraph);
+						m_ptrArray[1].Add(pGraph1);
 						//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// 绘制背景
-						CGraph *g = (CGraph *)m_ptrArray[0].GetAt(0);
-						m_dcMem.MoveTo(g->m_pt);
-						for(int i=1;i<m_ptrArray[0].GetSize();i++){
-							g = (CGraph *)m_ptrArray[0].GetAt(i);
-							m_dcMem.LineTo(g->m_pt);
+						for(int j=0;j<2;j++){
+							m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
+							CGraph *g = (CGraph *)m_ptrArray[j].GetAt(0);
+							m_dcMem.MoveTo(g->m_pt);
+							for(int i=1;i<m_ptrArray[j].GetSize();i++){
+								g = (CGraph *)m_ptrArray[j].GetAt(i);
+								m_dcMem.LineTo(g->m_pt);
+							}
 						}
 						//Invalidate();
-						GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+						GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 					}else{
 						m_edtRunning = "未开始";
 						m_runbrush = NULL;

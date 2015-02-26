@@ -48,7 +48,9 @@ protected:
 	DECLARE_MESSAGE_MAP()
 private:
 	BYTE v_portin[5];
+	short int v_lastTemperature;
 	int v_index;
+	BOOL m_smooth; // 是否允许温度突变
 
 	int m_curLineNo; // 当前干燥曲线段号
 	int m_curLineTime; // 当前段号运行时间(分)
