@@ -61,9 +61,10 @@ private:
 	int m_dataInvalid; // 无效的传输数据数量
 	BOOL m_Pause; // 程序暂停
 
-	CDC m_dcMem,m_dcBack; //缓冲DC和背景DC
+	CDC m_dcMem,m_dcMemTime,m_dcMemHG; //缓冲DC和背景DC
 	CPtrArray m_ptrArray[2];
-	int m_nLeft, m_nTop, m_nWidth, m_nHeight;
+	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // 拆线绘图区域
+	int m_tLeft, m_tTop, m_tWidth, m_tHeight; // 时间刻度区域
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
 
 public:
@@ -94,4 +95,7 @@ public:
 	CString m_edtRunTime;
 	CString m_edtAreaPauseTime;
 	CString m_edtRunPauseTime;
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+private:
+	void SetHStaff(void);
 };

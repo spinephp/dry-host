@@ -117,6 +117,7 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_OPENPORT, &ChostDlg::OnBnClickedButtonOpenport)
 	ON_BN_CLICKED(IDC_BUTTON_CLOSEPORT, &ChostDlg::OnBnClickedButtonCloseport)
 	ON_WM_CTLCOLOR()
+	ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -205,7 +206,25 @@ BOOL ChostDlg::OnInitDialog()
 	m_dcMem.SetWindowExt(m_nWidth, -m_nHeight);
 	m_dcMem.SetViewportOrg(0,0);
 	m_dcMem.SetWindowOrg(0,m_nHeight);
-	
+
+	m_tLeft = m_nLeft-20;
+	m_tTop = m_nTop+m_nHeight+8;
+	m_tWidth = m_nWidth+20;
+	m_tHeight = 16;
+
+    m_dcMemTime.CreateCompatibleDC(&dc);
+	tmp.CreateCompatibleBitmap(&dc, m_tWidth, m_tHeight);
+	m_dcMemTime.SelectObject(&tmp);
+	tmp.DeleteObject();
+
+    m_dcMemHG.CreateCompatibleDC(&dc);
+	tmp.CreateCompatibleBitmap(&dc, m_nWidth, 6);
+	m_dcMemHG.SelectObject(&tmp);
+	tmp.DeleteObject();
+
+	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+	pScrollBar->SetScrollRange(0,34560);//滑块移动的位置为0——34560；
+	SetHStaff();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -249,22 +268,19 @@ void ChostDlg::OnPaint()
 	{
 		CPaintDC dc(this); // 用于绘制的设备上下文
 		CSize size;
-		for(int n=-20,i=m_nTop+m_nHeight;i>60;i-=20,n+=20){
+		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+		for(int n=-50,i=m_nTop+m_nHeight;i>30;i-=10,n+=10){
 			char s[5];
 			dc.MoveTo(m_nLeft-5,i);
 			dc.LineTo(m_nLeft,i);
+			if(n%50==0){
 			sprintf(s,"%d",n);
 			size = dc.GetTextExtent(s,strlen(s));
 			dc.TextOutA(m_nLeft-7-size.cx,i-size.cy/2,s,strlen(s));
+			}
 		}
-		for(int n=0,i=m_nLeft;i<m_nLeft+m_nWidth-60;i+=60,n++){
-			char s[5];
-			dc.MoveTo(i,m_nTop+m_nHeight);
-			dc.LineTo(i,m_nTop+m_nHeight+5);
-			sprintf(s,"%d",n);
-			size = dc.GetTextExtent(s,strlen(s));
-			dc.TextOutA(i-size.cx/2,m_nTop+m_nHeight+7,s,strlen(s));
-		}
+		dc.BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);
+		dc.BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
 		CDialogEx::OnPaint();
 	}
 }
@@ -327,8 +343,8 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 							m_runbrush = &m_greenbrush;
 						}
 
-						CPoint pt(m_TotalTimes,m_lbTemperature+20);
-						CPoint pt1(m_TotalTimes,m_lbSettingtemperature+20);
+						CPoint pt(m_TotalTimes,m_lbTemperature+50);
+						CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
 						m_dcMem.DPtoLP(&pt);
 						m_dcMem.DPtoLP(&pt1);
 						CGraph *pGraph=new CGraph(0,pt);
@@ -582,4 +598,54 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	}  
 	// TODO: Return a different brush if the default is not desired  
 	return hbr;  
+}
+
+
+void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	int TempPos = pScrollBar->GetScrollPos();
+	switch(nSBCode)
+	{
+		case SB_THUMBPOSITION://拖动滑块
+			pScrollBar->SetScrollPos(nPos);
+			break;
+		case SB_LINELEFT://点击左边的箭头
+			if(TempPos > 0)
+			{
+				TempPos--;
+			}
+			pScrollBar->SetScrollPos(TempPos);
+		break;
+		case SB_LINERIGHT://点击右边的箭头
+			if(TempPos<34560)
+			{
+				TempPos++;
+			}
+			pScrollBar->SetScrollPos(TempPos);
+		break;
+	} 
+	SetHStaff();
+	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+
+void ChostDlg::SetHStaff(void)
+{
+	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+	int nCurpos=pScrollBar->GetScrollPos();
+	m_dcMemHG.FillSolidRect(0,0, m_nWidth, 6,RGB(240,240,240));
+	m_dcMemTime.FillSolidRect(0,0, m_tWidth, m_tHeight,RGB(240,240,240));
+	for(int n=0,i=20-nCurpos;i<m_tWidth-20;i+=60,n++){
+		if(i>=20){
+			char s[6];
+			m_dcMemHG.MoveTo(i-20,0);
+			m_dcMemHG.LineTo(i-20,5);
+			sprintf(s,"%d:%02d",n/6,(n%6)*10);
+			CSize size = m_dcMemTime.GetTextExtent(s,strlen(s));
+			m_dcMemTime.TextOutA(i-size.cx/2,0,s,strlen(s));
+		}
+	}
+	GetDC()->BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);
+	GetDC()->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
 }
