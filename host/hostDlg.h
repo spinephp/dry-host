@@ -51,6 +51,8 @@ private:
 	short int v_lastTemperature;
 	int v_index;
 	BOOL m_smooth; // 是否允许温度突变
+	BOOL m_canPause; // 是否允许程序暂停
+	int m_smoothvalue; // 允许温度突变最大值
 
 	int m_curLineNo; // 当前干燥曲线段号
 	int m_curLineTime; // 当前段号运行时间(分)
@@ -98,4 +100,7 @@ public:
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 private:
 	void SetHStaff(void);
+public:
+	void DrawTemperatureLine(void);
+	afx_msg void OnBnClickedButtonOption();
 };

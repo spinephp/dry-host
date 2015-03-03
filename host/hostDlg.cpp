@@ -1,10 +1,14 @@
 
+
 // hostDlg.cpp : 实现文件
 //
+
+// 在程序的文件夹下生成MSXML3.TLH和MSXML3.TLI两个文件;  
 
 #include "stdafx.h"
 #include "host.h"
 #include "hostDlg.h"
+#include "optionDlg.h"
 #include "afxdialogex.h"
 #include "windows.h"
 
@@ -12,17 +16,18 @@
 #define new DEBUG_NEW
 #endif
 
+#include <msxml2.h>
+
 class CGraph 
 {
 public:
-	CPoint m_pt;//起点
-	UINT m_nDrawType;//绘画类型
+	CPoint m_pt; // 起点
+	UINT m_nDrawType; // 绘画类型
 	CGraph();
 	CGraph(UINT m_nDrawType,CPoint m_pt){
 		this->m_nDrawType = m_nDrawType;
 		this->m_pt = m_pt;
-	};//此为构造函数。
-	virtual ~CGraph(){};
+	}; // 此为构造函数。
 };
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -118,6 +123,7 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_CLOSEPORT, &ChostDlg::OnBnClickedButtonCloseport)
 	ON_WM_CTLCOLOR()
 	ON_WM_HSCROLL()
+	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -171,6 +177,8 @@ BOOL ChostDlg::OnInitDialog()
 	v_index = 0;
 	v_lastTemperature = -100;
 	m_smooth = FALSE;
+	m_canPause = TRUE; // 允许自动暂停
+	m_smoothvalue = 16; // 设置 10 秒内温度变化阀值在 1℃ 之内
 
 	m_redcolor=RGB(255,0,0);                      // 红色  
 	m_bluecolor=RGB(0,0,255);                     // 蓝色  
@@ -197,7 +205,6 @@ BOOL ChostDlg::OnInitDialog()
 	tmpp.CreateCompatibleBitmap(&dc, m_nWidth, m_nHeight);
 	//m_dcBack.SelectObject(&tmp);
 	m_dcMem.SelectObject(&tmpp);
-	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
 	//tmp.DeleteObject();
 	tmpp.DeleteObject();
 	
@@ -224,6 +231,7 @@ BOOL ChostDlg::OnInitDialog()
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 	pScrollBar->SetScrollRange(0,34560);//滑块移动的位置为0——34560；
+	DrawTemperatureLine();
 	SetHStaff();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -279,8 +287,14 @@ void ChostDlg::OnPaint()
 			dc.TextOutA(m_nLeft-7-size.cx,i-size.cy/2,s,strlen(s));
 			}
 		}
-		dc.BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);
-		dc.BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
+
+		// 显示水平标尺
+		dc.BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);// 显示刻度线
+		dc.BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY); // 显示刻度时间
+
+		// 绘制温度曲线
+		dc.BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
+
 		CDialogEx::OnPaint();
 	}
 }
@@ -308,7 +322,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				temperature = *(short int*)(v_portin+2);
 				if(v_lastTemperature==-100)
 					v_lastTemperature = temperature;
-				if(m_smooth && temperature > v_lastTemperature-48 && temperature < v_lastTemperature+48 || !m_smooth && temperature > -800 && temperature < 3200){ // 设置阀值为 10 秒内温度变化在 3℃ 之内，为正常，否则认为是由其它因素造成的误差
+				if(m_smooth && temperature > v_lastTemperature-m_smoothvalue && temperature < v_lastTemperature+m_smoothvalue || !m_smooth && temperature > -800 && temperature < 3200){ // ，为正常，否则认为是由其它因素造成的误差
 					v_lastTemperature = temperature;
 					str.Format("%5.1f",temperature*0.0625); 
 					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
@@ -327,7 +341,8 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 							if(m_lbTemperature < m_lbSettingtemperature-3){
 								m_edtRunning = "温度低，暂停";
 								m_runbrush = &m_redbrush;
-								m_Pause = TRUE;
+								if(m_canPause)
+									m_Pause = TRUE;
 							}
 						}else if(m_lbTemperature > m_lbSettingtemperature+2){
 							// 温度高
@@ -347,22 +362,9 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
 						m_dcMem.DPtoLP(&pt);
 						m_dcMem.DPtoLP(&pt1);
-						CGraph *pGraph=new CGraph(0,pt);
-						CGraph *pGraph1=new CGraph(0,pt1);
-						m_ptrArray[0].Add(pGraph);
-						m_ptrArray[1].Add(pGraph1);
-						//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// 绘制背景
-						for(int j=0;j<2;j++){
-							m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
-							CGraph *g = (CGraph *)m_ptrArray[j].GetAt(0);
-							m_dcMem.MoveTo(g->m_pt);
-							for(int i=1;i<m_ptrArray[j].GetSize();i++){
-								g = (CGraph *)m_ptrArray[j].GetAt(i);
-								m_dcMem.LineTo(g->m_pt);
-							}
-						}
-						//Invalidate();
-						GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
+						m_ptrArray[0].Add(new CGraph(0,pt));
+						m_ptrArray[1].Add(new CGraph(0,pt1));
+						DrawTemperatureLine();
 					}else{
 						m_edtRunning = "未开始";
 						m_runbrush = NULL;
@@ -625,11 +627,12 @@ void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 			pScrollBar->SetScrollPos(TempPos);
 		break;
 	} 
+	DrawTemperatureLine();
 	SetHStaff();
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
-
+// 绘制水平标尺
 void ChostDlg::SetHStaff(void)
 {
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
@@ -648,4 +651,50 @@ void ChostDlg::SetHStaff(void)
 	}
 	GetDC()->BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);
 	GetDC()->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
+}
+
+// 绘制温度曲线
+void ChostDlg::DrawTemperatureLine(void)
+{
+	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+	int nCurpos=pScrollBar->GetScrollPos();
+	int nSizes=m_ptrArray[0].GetSize();
+	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
+	if(nSizes && nSizes > nCurpos){
+		//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// 绘制背景
+		for(int j=0;j<2;j++){
+			m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
+			CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nCurpos);
+			m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
+			for(int i=nCurpos+1;i<m_ptrArray[j].GetSize() && i<nCurpos+m_nWidth;i++){
+				g = (CGraph *)m_ptrArray[j].GetAt(i);
+				m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
+			}
+		}
+	}
+	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
+}
+
+
+void ChostDlg::OnBnClickedButtonOption()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	optionDlg dlg;
+	//m_pMainWnd = &dlg;
+	INT_PTR nResponse = dlg.DoModal();
+	if (nResponse == IDOK)
+	{
+		// TODO: 在此放置处理何时用
+		//  “确定”来关闭对话框的代码
+	}
+	else if (nResponse == IDCANCEL)
+	{
+		// TODO: 在此放置处理何时用
+		//  “取消”来关闭对话框的代码
+	}
+	else if (nResponse == -1)
+	{
+		TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+		TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+	}
 }
