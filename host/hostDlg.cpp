@@ -1,9 +1,9 @@
+ï»¿
 
-
-// hostDlg.cpp : ÊµÏÖÎÄ¼ş
+// hostDlg.cpp : å®ç°æ–‡ä»¶
 //
 
-// ÔÚ³ÌĞòµÄÎÄ¼ş¼ĞÏÂÉú³ÉMSXML3.TLHºÍMSXML3.TLIÁ½¸öÎÄ¼ş;  
+// åœ¨ç¨‹åºçš„æ–‡ä»¶å¤¹ä¸‹ç”ŸæˆMSXML3.TLHå’ŒMSXML3.TLIä¸¤ä¸ªæ–‡ä»¶;  
 
 #include "stdafx.h"
 #include "host.h"
@@ -16,34 +16,32 @@
 #define new DEBUG_NEW
 #endif
 
-#include <msxml2.h>
-
 class CGraph 
 {
 public:
-	CPoint m_pt; // Æğµã
-	UINT m_nDrawType; // »æ»­ÀàĞÍ
+	CPoint m_pt; // èµ·ç‚¹
+	UINT m_nDrawType; // ç»˜ç”»ç±»å‹
 	CGraph();
 	CGraph(UINT m_nDrawType,CPoint m_pt){
 		this->m_nDrawType = m_nDrawType;
 		this->m_pt = m_pt;
-	}; // ´ËÎª¹¹Ôìº¯Êı¡£
+	}; // æ­¤ä¸ºæ„é€ å‡½æ•°ã€‚
 };
 
-// ÓÃÓÚÓ¦ÓÃ³ÌĞò¡°¹ØÓÚ¡±²Ëµ¥ÏîµÄ CAboutDlg ¶Ô»°¿ò
+// ç”¨äºåº”ç”¨ç¨‹åºâ€œå…³äºâ€èœå•é¡¹çš„ CAboutDlg å¯¹è¯æ¡†
 
 class CAboutDlg : public CDialogEx
 {
 public:
 	CAboutDlg();
 
-// ¶Ô»°¿òÊı¾İ
+// å¯¹è¯æ¡†æ•°æ®
 	enum { IDD = IDD_ABOUTBOX };
 
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV Ö§³Ö
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV æ”¯æŒ
 
-// ÊµÏÖ
+// å®ç°
 protected:
 	DECLARE_MESSAGE_MAP()
 
@@ -55,7 +53,7 @@ CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
 
 void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
-    // ´¦ÀíMFCÄ¬ÈÏµÄÊı¾İ½»»»   
+    // å¤„ç†MFCé»˜è®¤çš„æ•°æ®äº¤æ¢   
     CDialogEx::DoDataExchange(pDX);   
 }
 
@@ -63,7 +61,7 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// ChostDlg ¶Ô»°¿ò
+// ChostDlg å¯¹è¯æ¡†
 
 
 
@@ -71,12 +69,12 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(ChostDlg::IDD, pParent)
 	, m_cbxPort(_T(""))
 	, m_cbxBaudrate(_T("9600"))
-	, m_cbxVerifybit(_T("ÎŞ"))
+	, m_cbxVerifybit(_T("æ— "))
 	, m_cbxDatabit(_T("8"))
 	, m_cbxStopbit(_T("1"))
 	, m_lbTemperature(0)
 	, m_lbSettingtemperature(-100)
-	, m_edtRunning(_T("Î´ÔËĞĞ"))
+	, m_edtRunning(_T("æœªè¿è¡Œ"))
 	, m_edtArea(_T(""))
 	, m_edtAreaTime(_T("0:0"))
 	, m_edtRunTime(_T("0:0"))
@@ -126,15 +124,15 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
 END_MESSAGE_MAP()
 
-// ChostDlg ÏûÏ¢´¦Àí³ÌĞò
+// ChostDlg æ¶ˆæ¯å¤„ç†ç¨‹åº
 
 BOOL ChostDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// ½«¡°¹ØÓÚ...¡±²Ëµ¥ÏîÌí¼Óµ½ÏµÍ³²Ëµ¥ÖĞ¡£
+	// å°†â€œå…³äº...â€èœå•é¡¹æ·»åŠ åˆ°ç³»ç»Ÿèœå•ä¸­ã€‚
 
-	// IDM_ABOUTBOX ±ØĞëÔÚÏµÍ³ÃüÁî·¶Î§ÄÚ¡£
+	// IDM_ABOUTBOX å¿…é¡»åœ¨ç³»ç»Ÿå‘½ä»¤èŒƒå›´å†…ã€‚
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
@@ -152,12 +150,12 @@ BOOL ChostDlg::OnInitDialog()
 		}
 	}
 
-	// ÉèÖÃ´Ë¶Ô»°¿òµÄÍ¼±ê¡£µ±Ó¦ÓÃ³ÌĞòÖ÷´°¿Ú²»ÊÇ¶Ô»°¿òÊ±£¬¿ò¼Ü½«×Ô¶¯
-	//  Ö´ĞĞ´Ë²Ù×÷
-	SetIcon(m_hIcon, TRUE);			// ÉèÖÃ´óÍ¼±ê
-	SetIcon(m_hIcon, FALSE);		// ÉèÖÃĞ¡Í¼±ê
+	// è®¾ç½®æ­¤å¯¹è¯æ¡†çš„å›¾æ ‡ã€‚å½“åº”ç”¨ç¨‹åºä¸»çª—å£ä¸æ˜¯å¯¹è¯æ¡†æ—¶ï¼Œæ¡†æ¶å°†è‡ªåŠ¨
+	//  æ‰§è¡Œæ­¤æ“ä½œ
+	SetIcon(m_hIcon, TRUE);			// è®¾ç½®å¤§å›¾æ ‡
+	SetIcon(m_hIcon, FALSE);		// è®¾ç½®å°å›¾æ ‡
 
-	// TODO: ÔÚ´ËÌí¼Ó¶îÍâµÄ³õÊ¼»¯´úÂë
+	// TODO: åœ¨æ­¤æ·»åŠ é¢å¤–çš„åˆå§‹åŒ–ä»£ç 
 
 	CArray<CString ,CString> comPort;
 	GetSystemSerialComport(comPort);
@@ -167,7 +165,7 @@ BOOL ChostDlg::OnInitDialog()
 		m_cbPort.AddString(s);
 	}
 
-	m_cbPort.SetCurSel(0); //³õÊ¼Ñ¡Ôñ´®¿Ú1
+	m_cbPort.SetCurSel(0); //åˆå§‹é€‰æ‹©ä¸²å£1
 	m_bPortOpen = FALSE;
 
 
@@ -176,23 +174,21 @@ BOOL ChostDlg::OnInitDialog()
 
 	v_index = 0;
 	v_lastTemperature = -100;
-	m_smooth = FALSE;
-	m_canPause = TRUE; // ÔÊĞí×Ô¶¯ÔİÍ£
-	m_smoothvalue = 16; // ÉèÖÃ 10 ÃëÄÚÎÂ¶È±ä»¯·§ÖµÔÚ 1¡æ Ö®ÄÚ
+	m_smoothvalue = m_allowOperatingValue[1]*16; // è®¾ç½® 10 ç§’å†…æ¸©åº¦å˜åŒ–é˜€å€¼åœ¨ 1â„ƒ ä¹‹å†…
 
-	m_redcolor=RGB(255,0,0);                      // ºìÉ«  
-	m_bluecolor=RGB(0,0,255);                     // À¶É«  
-	m_greencolor=RGB(0,255,0);                     // ÂÌÉ«  
-	m_textcolor=RGB(255,255,255);                 // ÎÄ±¾ÑÕÉ«ÉèÖÃÎª°×É«  
-	m_redbrush.CreateSolidBrush(m_redcolor);      // ºìÉ«±³¾°É«  
-	m_bluebrush.CreateSolidBrush(m_bluecolor);    // À¶É«±³¾°É«  
-	m_greenbrush.CreateSolidBrush(m_greencolor);    // À¶É«±³¾°É«  
-	m_yellowbrush.CreateSolidBrush(RGB(255,255,0));    // »ÆÉ«±³¾°É«  
+	m_redcolor=RGB(255,0,0);                      // çº¢è‰²  
+	m_bluecolor=RGB(0,0,255);                     // è“è‰²  
+	m_greencolor=RGB(0,255,0);                     // ç»¿è‰²  
+	m_textcolor=RGB(255,255,255);                 // æ–‡æœ¬é¢œè‰²è®¾ç½®ä¸ºç™½è‰²  
+	m_redbrush.CreateSolidBrush(m_redcolor);      // çº¢è‰²èƒŒæ™¯è‰²  
+	m_bluebrush.CreateSolidBrush(m_bluecolor);    // è“è‰²èƒŒæ™¯è‰²  
+	m_greenbrush.CreateSolidBrush(m_greencolor);    // è“è‰²èƒŒæ™¯è‰²  
+	m_yellowbrush.CreateSolidBrush(RGB(255,255,0));    // é»„è‰²èƒŒæ™¯è‰²  
 
 	CRect rect;
 	CPaintDC dc(this);
-	GetDlgItem(IDC_STATIC_RUNNINGTIME)->GetWindowRect(&rect);//»ñÈ¡¿Ø¼şÏà¶ÔÓÚÆÁÄ»µÄÎ»ÖÃ
-	ScreenToClient(rect);//×ª»¯Îª¶Ô»°¿òÉÏµÄÏà¶ÔÎ»ÖÃ
+	GetDlgItem(IDC_STATIC_RUNNINGTIME)->GetWindowRect(&rect);//è·å–æ§ä»¶ç›¸å¯¹äºå±å¹•çš„ä½ç½®
+	ScreenToClient(rect);//è½¬åŒ–ä¸ºå¯¹è¯æ¡†ä¸Šçš„ç›¸å¯¹ä½ç½®
 	m_nLeft = rect.left+40;
 	m_nTop = rect.top+20;
 	m_nWidth = rect.Width()-50;
@@ -230,10 +226,13 @@ BOOL ChostDlg::OnInitDialog()
 	tmp.DeleteObject();
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-	pScrollBar->SetScrollRange(0,34560);//»¬¿éÒÆ¶¯µÄÎ»ÖÃÎª0¡ª¡ª34560£»
+	pScrollBar->SetScrollRange(0,34560);//æ»‘å—ç§»åŠ¨çš„ä½ç½®ä¸º0â€”â€”34560ï¼›
 	DrawTemperatureLine();
 	SetHStaff();
-	return TRUE;  // ³ı·Ç½«½¹µãÉèÖÃµ½¿Ø¼ş£¬·ñÔò·µ»Ø TRUE
+
+	CoInitialize(NULL);
+	loadXLM();
+	return TRUE;  // é™¤éå°†ç„¦ç‚¹è®¾ç½®åˆ°æ§ä»¶ï¼Œå¦åˆ™è¿”å› TRUE
 }
 
 void ChostDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -249,19 +248,19 @@ void ChostDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	}
 }
 
-// Èç¹ûÏò¶Ô»°¿òÌí¼Ó×îĞ¡»¯°´Å¥£¬ÔòĞèÒªÏÂÃæµÄ´úÂë
-//  À´»æÖÆ¸ÃÍ¼±ê¡£¶ÔÓÚÊ¹ÓÃÎÄµµ/ÊÓÍ¼Ä£ĞÍµÄ MFC Ó¦ÓÃ³ÌĞò£¬
-//  Õâ½«ÓÉ¿ò¼Ü×Ô¶¯Íê³É¡£
+// å¦‚æœå‘å¯¹è¯æ¡†æ·»åŠ æœ€å°åŒ–æŒ‰é’®ï¼Œåˆ™éœ€è¦ä¸‹é¢çš„ä»£ç 
+//  æ¥ç»˜åˆ¶è¯¥å›¾æ ‡ã€‚å¯¹äºä½¿ç”¨æ–‡æ¡£/è§†å›¾æ¨¡å‹çš„ MFC åº”ç”¨ç¨‹åºï¼Œ
+//  è¿™å°†ç”±æ¡†æ¶è‡ªåŠ¨å®Œæˆã€‚
 
 void ChostDlg::OnPaint()
 {
 	if (IsIconic())
 	{
-		CPaintDC dc(this); // ÓÃÓÚ»æÖÆµÄÉè±¸ÉÏÏÂÎÄ
+		CPaintDC dc(this); // ç”¨äºç»˜åˆ¶çš„è®¾å¤‡ä¸Šä¸‹æ–‡
 
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
-		// Ê¹Í¼±êÔÚ¹¤×÷Çø¾ØĞÎÖĞ¾ÓÖĞ
+		// ä½¿å›¾æ ‡åœ¨å·¥ä½œåŒºçŸ©å½¢ä¸­å±…ä¸­
 		int cxIcon = GetSystemMetrics(SM_CXICON);
 		int cyIcon = GetSystemMetrics(SM_CYICON);
 		CRect rect;
@@ -269,12 +268,12 @@ void ChostDlg::OnPaint()
 		int x = (rect.Width() - cxIcon + 1) / 2;
 		int y = (rect.Height() - cyIcon + 1) / 2;
 
-		// »æÖÆÍ¼±ê
+		// ç»˜åˆ¶å›¾æ ‡
 		dc.DrawIcon(x, y, m_hIcon);
 	}
 	else
 	{
-		CPaintDC dc(this); // ÓÃÓÚ»æÖÆµÄÉè±¸ÉÏÏÂÎÄ
+		CPaintDC dc(this); // ç”¨äºç»˜åˆ¶çš„è®¾å¤‡ä¸Šä¸‹æ–‡
 		CSize size;
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		for(int n=-50,i=m_nTop+m_nHeight;i>30;i-=10,n+=10){
@@ -288,73 +287,78 @@ void ChostDlg::OnPaint()
 			}
 		}
 
-		// ÏÔÊ¾Ë®Æ½±ê³ß
-		dc.BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);// ÏÔÊ¾¿Ì¶ÈÏß
-		dc.BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY); // ÏÔÊ¾¿Ì¶ÈÊ±¼ä
+		// æ˜¾ç¤ºæ°´å¹³æ ‡å°º
+		dc.BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);// æ˜¾ç¤ºåˆ»åº¦çº¿
+		dc.BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY); // æ˜¾ç¤ºåˆ»åº¦æ—¶é—´
 
-		// »æÖÆÎÂ¶ÈÇúÏß
+		// ç»˜åˆ¶æ¸©åº¦æ›²çº¿
 		dc.BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 
 		CDialogEx::OnPaint();
 	}
 }
 
-//µ±ÓÃ»§ÍÏ¶¯×îĞ¡»¯´°¿ÚÊ±ÏµÍ³µ÷ÓÃ´Ëº¯ÊıÈ¡µÃ¹â±ê
-//ÏÔÊ¾¡£
+//å½“ç”¨æˆ·æ‹–åŠ¨æœ€å°åŒ–çª—å£æ—¶ç³»ç»Ÿè°ƒç”¨æ­¤å‡½æ•°å–å¾—å…‰æ ‡
+//æ˜¾ç¤ºã€‚
 HCURSOR ChostDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
 
-//×Ö·û½ÓÊÕÏûÏ¢ÏìÓ¦º¯Êı
+//å­—ç¬¦æ¥æ”¶æ¶ˆæ¯å“åº”å‡½æ•°
 LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 {
-	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
 	v_portin[v_index++] = ch;
-	if(v_portin[v_index-1]==0xfe && v_index==5){ //½ÓÊÕÍê±Ï
+	if(v_portin[v_index-1]==0xfe && v_index==5){ //æ¥æ”¶å®Œæ¯•
 		CString str; 
 		BYTE cmd = v_portin[1];
 		short int temperature;
 		v_index = 0;
 		switch(cmd){
-			case cmdGetTemperature: // µ±Ç°Êµ¼ÊÎÂ¶È
+			case cmdGetTemperature: // å½“å‰å®é™…æ¸©åº¦
 				temperature = *(short int*)(v_portin+2);
 				if(v_lastTemperature==-100)
 					v_lastTemperature = temperature;
-				if(m_smooth && temperature > v_lastTemperature-m_smoothvalue && temperature < v_lastTemperature+m_smoothvalue || !m_smooth && temperature > -800 && temperature < 3200){ // £¬ÎªÕı³££¬·ñÔòÈÏÎªÊÇÓÉÆäËüÒòËØÔì³ÉµÄÎó²î
+				if(m_allowOperating[1] && temperature > v_lastTemperature-m_smoothvalue && temperature < v_lastTemperature+m_smoothvalue || !m_allowOperating[1] && temperature > -800 && temperature < 3200){ // ï¼Œä¸ºæ­£å¸¸ï¼Œå¦åˆ™è®¤ä¸ºæ˜¯ç”±å…¶å®ƒå› ç´ é€ æˆçš„è¯¯å·®
 					v_lastTemperature = temperature;
 					str.Format("%5.1f",temperature*0.0625); 
-					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //½«½ÓÊÕµ½µÄ×Ö·û´æÈë±à¼­¿ò¶ÔÓ¦µÄ±äÁ¿ÖĞ
-					if(m_curLineNo>-1){// ¸ÉÔïÒÑ¿ªÊ¼
+					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //å°†æ¥æ”¶åˆ°çš„å­—ç¬¦å­˜å…¥ç¼–è¾‘æ¡†å¯¹åº”çš„å˜é‡ä¸­
+					if(m_curLineNo>-1){// å¹²ç‡¥å·²å¼€å§‹
 						m_Pause = FALSE;
 						if(((int)m_lbSettingtemperature)==-100){
 							m_lbSettingtemperature = m_lbTemperature;
-							m_edtArea.Format("%d¡æ %s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
+							m_edtArea.Format("%dâ„ƒ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
 						}
 						
-						if(m_lbTemperature < m_lbSettingtemperature-2){
-							// ÎÂ¶ÈµÍ
-							Beep (1000,1000);
-							m_edtRunning = "ÎÂ¶ÈµÍ";
+						if(m_lbTemperature < m_lbSettingtemperature-m_allowOperatingValue[2]){
+							// æ¸©åº¦ä½
+							if(m_allowOperating[2])
+								Beep (1000,1000);
+							m_edtRunning = "æ¸©åº¦ä½";
 							m_runbrush = &m_yellowbrush;
-							if(m_lbTemperature < m_lbSettingtemperature-3){
-								m_edtRunning = "ÎÂ¶ÈµÍ£¬ÔİÍ£";
+							if(m_lbTemperature < m_lbSettingtemperature-m_allowOperatingValue[3]){
+								m_edtRunning = "æ¸©åº¦ä½ï¼Œæš‚åœ";
 								m_runbrush = &m_redbrush;
-								if(m_canPause)
+								if(m_allowOperating[3])
+									Beep (2000,500);
+								if(m_allowOperating[0]) // æ˜¯å¦å…è®¸ä½æ¸©æš‚åœ
 									m_Pause = TRUE;
 							}
-						}else if(m_lbTemperature > m_lbSettingtemperature+2){
-							// ÎÂ¶È¸ß
-							m_edtRunning = "ÎÂ¶È¸ß";
-							Beep(1000,1000);
+						}else if(m_lbTemperature > m_lbSettingtemperature+m_allowOperatingValue[2]){
+							// æ¸©åº¦é«˜
+							m_edtRunning = "æ¸©åº¦é«˜";
+							if(m_allowOperating[2])
+								Beep (1000,500);
 							m_runbrush = &m_yellowbrush;
-							if(m_lbTemperature > m_lbSettingtemperature+3){
-								m_edtRunning = "ÎÂ¶È¸ß!!!";
+							if(m_lbTemperature > m_lbSettingtemperature+m_allowOperatingValue[3]){
+								if(m_allowOperating[3])
+									Beep (2000,1000);
+								m_edtRunning = "æ¸©åº¦é«˜!!!";
 								m_runbrush = &m_redbrush;
 							}
-						}else{ // ÎÂ¶ÈÕı³£
-							m_edtRunning = "Õı³£";
+						}else{ // æ¸©åº¦æ­£å¸¸
+							m_edtRunning = "æ­£å¸¸";
 							m_runbrush = &m_greenbrush;
 						}
 
@@ -366,19 +370,19 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						m_ptrArray[1].Add(new CGraph(0,pt1));
 						DrawTemperatureLine();
 					}else{
-						m_edtRunning = "Î´¿ªÊ¼";
+						m_edtRunning = "æœªå¼€å§‹";
 						m_runbrush = NULL;
 					}
-					UpdateData(FALSE);  //½«½ÓÊÕµ½µÄ×Ö·ûÏÔÊ¾ÔÚ½ÓÊÜ±à¼­¿òÖĞ
+					UpdateData(FALSE);  //å°†æ¥æ”¶åˆ°çš„å­—ç¬¦æ˜¾ç¤ºåœ¨æ¥å—ç¼–è¾‘æ¡†ä¸­
 				}else{
 					m_dataInvalid++;
 				}
 				break;
-			case cmdSettingTemperature: // ÏÂÎ»»úµ±Ç°µÄÉè¶¨ÎÂ¶È
+			case cmdSettingTemperature: // ä¸‹ä½æœºå½“å‰çš„è®¾å®šæ¸©åº¦
 				break;
-			case cmdSettingLineNo: // ÏÂÎ»»úµ±Ç°¶ÎºÅ
+			case cmdSettingLineNo: // ä¸‹ä½æœºå½“å‰æ®µå·
 				switch(v_portin[2]){
-				case 0: // ¸ÉÔïÎ´½øĞĞ
+				case 0: // å¹²ç‡¥æœªè¿›è¡Œ
 					m_curLineNo = 0;
 					m_curLineTime = 0;
 					m_TotalTime = 0;
@@ -386,19 +390,13 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					m_curLinePauseTime = 0;
 					m_TotalPauseTime = 0;
 					m_dataInvalid = 0;
-					send[1] = cmdSettingLineNo;
-					send[2] = 1;
-					send[3] = 0;
-					m_SerialPort.WriteToPort(send,5); // ÉèÖÃÏÂÎ»»úµ±Ç°¶ÎºÅÎª 1
-					send[1] = cmdRunningStatus;
-					send[2] = 0;
-					send[3] = 0;
-					m_SerialPort.WriteToPort(send,5); // ÉèÖÃÏÂÎ»»úµ±Ç°ÔËĞĞ×´Ì¬Îª 0(ÉıÎÂ)
+					downSend(cmdSettingLineNo,1);// è®¾ç½®ä¸‹ä½æœºå½“å‰æ®µå·ä¸º 1
+					downSend(cmdRunningStatus,0);// è®¾ç½®ä¸‹ä½æœºå½“å‰è¿è¡ŒçŠ¶æ€ä¸º 0(å‡æ¸©)
 					SetTimer(1,60000,NULL);
 					break;
 				}
 				break;
-			case cmdRunningStatus: // ÏÂÎ»»úµ±Ç°¶ÎÔËĞĞÊ±¼ä,µ¥Î»£º·Ö
+			case cmdRunningStatus: // ä¸‹ä½æœºå½“å‰æ®µè¿è¡Œæ—¶é—´,å•ä½ï¼šåˆ†
 				break;
 		}
 	}
@@ -408,69 +406,59 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 void  ChostDlg::OnTimer(UINT nIDEvent)
 {
 	char tem[20];
-	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
 	float at = 0.0;
 	switch(nIDEvent){
 	case 0:
-		send[1] = cmdGetTemperature;
-		send[2] = 0;
-		send[3] = 0;
-		m_SerialPort.WriteToPort(send,5); // Í¨ÖªÏÂÎ»»ú·¢ËÍµ±Ç°Êµ¼ÊÎÂ¶È
+		downSend(cmdGetTemperature,0);// é€šçŸ¥ä¸‹ä½æœºå‘é€å½“å‰å®é™…æ¸©åº¦
 		m_TotalTimes++;
 		break;
 	case 1:
 		m_TotalTime++;
-		if(m_Pause){ // ³ÌĞòÔİÍ£
+		if(m_Pause){ // ç¨‹åºæš‚åœ
 			m_curLinePauseTime++;
 			m_TotalPauseTime++;
-		}else{ // ³ÌĞòÎ´ÔİÍ£
+		}else{ // ç¨‹åºæœªæš‚åœ
 			m_curLineTime++;
-			at = m_dryLine[m_curLineNo][1]/60.0;
+			at = m_dryLines[m_curLineNo][1]/60.0;
 		}
 		m_edtRunTime.Format("%2d:%02d",m_TotalTime/60,m_TotalTime%60);
 		m_edtAreaTime.Format("%2d:%02d",m_curLineTime/60,m_curLineTime%60);
 		m_edtRunPauseTime.Format("%2d:%02d",m_TotalPauseTime/60,m_TotalPauseTime%60);
 		m_edtAreaPauseTime.Format("%2d:%02d",m_curLinePauseTime/60,m_curLinePauseTime%60);
-		if(m_dryLine[m_curLineNo][1]){ // ÉıÎÂ
+		if(m_dryLines[m_curLineNo][1]){ // å‡æ¸©
 			float t = m_lbSettingtemperature;
 			t += at;
-			if((short int)t<m_dryLine[m_curLineNo][0]){// Î´Éıµ½¶ÎÖ¸¶¨ÎÂ¶È
+			if((short int)t<m_dryLines[m_curLineNo][0]){// æœªå‡åˆ°æ®µæŒ‡å®šæ¸©åº¦
 				if((short int)t > (short int)m_lbSettingtemperature){
-					send[1] = cmdSettingTemperature;
-					*(WORD*)(send+2) = (short int)t;
-					m_SerialPort.WriteToPort(send,5);// ´«ËÍµ±Ç°Éè¶¨ÎÂ¶È¸øÏÂÎ»»ú
+					downSend(cmdSettingTemperature,t);// ä¼ é€å½“å‰è®¾å®šæ¸©åº¦ç»™ä¸‹ä½æœº
 				}
 				m_lbSettingtemperature = t;
-			}else{ // ÉıÎÂ½áÊø
+			}else{ // å‡æ¸©ç»“æŸ
 				m_curLineNo++;
-				m_curLineTime = 0;
-				m_curLinePauseTime = 0;
-				send[1] = cmdSettingTemperature;
-				*(WORD*)(send+2) = m_dryLine[m_curLineNo][0];
-				m_SerialPort.WriteToPort(send,5);// ´«ËÍµ±Ç°Éè¶¨ÎÂ¶È¸øÏÂÎ»»ú
+				if(m_curLineNo<m_dryLines.size()){ // å¹²ç‡¥æœªç»“æŸ
+					m_curLineTime = 0;
+					m_curLinePauseTime = 0;
+					downSend(cmdSettingTemperature,m_dryLines[m_curLineNo][0]);// ä¼ é€å½“å‰è®¾å®šæ¸©åº¦ç»™ä¸‹ä½æœº
+					m_lbSettingtemperature = m_dryLines[m_curLineNo][0];
 
-				m_edtArea.Format("%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[1]);
+					m_edtArea.Format("%dâ„ƒ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[1]);
+				}else{
+					endDry();
+				}
 			}
-		}else if(m_curLineTime>m_dryLine[m_curLineNo][2]*60){ // ±£ÎÂÊ±¼äµ½
+		}else if(m_curLineTime>m_dryLines[m_curLineNo][2]*60){ // ä¿æ¸©æ—¶é—´åˆ°
+			m_curLineNo++;
 			m_curLineTime = 0;
 			m_curLinePauseTime = 0;
-			if(m_curLineNo<8){ // ¸ÉÔïÎ´½áÊø
-				send[1] = cmdSettingTemperature;
-				*(WORD*)(send+2) = m_dryLine[m_curLineNo++][0];
-				m_SerialPort.WriteToPort(send,5); // ´«ËÍµ±Ç°Éè¶¨ÎÂ¶È¸øÏÂÎ»»ú
+			if(m_curLineNo<m_dryLines.size()){ // å¹²ç‡¥æœªç»“æŸ
+				downSend(cmdSettingTemperature,m_dryLines[m_curLineNo][0]);// ä¼ é€å½“å‰è®¾å®šæ¸©åº¦ç»™ä¸‹ä½æœº
 
-				m_edtArea.Format("%d%s",m_dryLine[m_curLineNo][0],dryRunningStatus[0]);
+				m_edtArea.Format("%dâ„ƒ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
 			}else{
-				KillTimer(1);
-				send[1] = cmdSettingLineNo;
-				*(WORD*)(send+2) = 0;
-				m_SerialPort.WriteToPort(send,5); // ÉèÖÃÏÂÎ»»úµ±Ç°¶ÎºÅÎª 1
-				send[1] = cmdRunningStatus;
-				*(WORD*)(send+2) = 4;
-				m_SerialPort.WriteToPort(send,5); // ÉèÖÃÏÂÎ»»úµ±Ç°ÔËĞĞ×´Ì¬Îª 4(½áÊø)
+				endDry();
 			}
 		}
-		UpdateData(FALSE);     //¶ÁÈë±à¼­¿òµÄÊı¾İ
+		UpdateData(FALSE);     //è¯»å…¥ç¼–è¾‘æ¡†çš„æ•°æ®
 		break;
 	}
 	v_index = 0;
@@ -481,9 +469,9 @@ void ChostDlg::OnButtonSend()
 {
  // TODO: Add your control notification handler code here
  if(!m_SerialPort.IsOpen())
- return ;      //¼ì²â´®¿ÚÊÇ·ñ´ò¿ª
- UpdateData(TRUE);     //¶ÁÈë±à¼­¿òµÄÊı¾İ
- //m_SerialPort.WriteToPort((LPCTSTR)m_strTxMsg);  //·¢ËÍÊı¾İ
+ return ;      //æ£€æµ‹ä¸²å£æ˜¯å¦æ‰“å¼€
+ UpdateData(TRUE);     //è¯»å…¥ç¼–è¾‘æ¡†çš„æ•°æ®
+ //m_SerialPort.WriteToPort((LPCTSTR)m_strTxMsg);  //å‘é€æ•°æ®
 }
 
 BOOL ChostDlg::GetSystemSerialComport(CArray<CString,CString> &comarray)
@@ -508,32 +496,28 @@ BOOL ChostDlg::GetSystemSerialComport(CArray<CString,CString> &comarray)
 }
 
 
-void ChostDlg::OnBnClickedButtonOpenport() //´ò¿ª´®¿Ú°´Å¥ÏûÏ¢ÏìÓ¦º¯Êı
+void ChostDlg::OnBnClickedButtonOpenport() //æ‰“å¼€ä¸²å£æŒ‰é’®æ¶ˆæ¯å“åº”å‡½æ•°
 {
-	// TODO: ÔÚ´ËÌí¼Ó¿Ø¼şÍ¨Öª´¦Àí³ÌĞò´úÂë
+	// TODO: åœ¨æ­¤æ·»åŠ æ§ä»¶é€šçŸ¥å¤„ç†ç¨‹åºä»£ç 
 	CString str,str1;
-	UINT nPort=m_cbPort.GetCurSel()+1;   //µÃµ½´®¿ÚºÅ
-	m_cbBaudrate.GetLBText(m_cbBaudrate.GetCurSel(),str);   //µÃµ½²¨ÌØÂÊ
+	UINT nPort=m_cbPort.GetCurSel()+1;   //å¾—åˆ°ä¸²å£å·
+	m_cbBaudrate.GetLBText(m_cbBaudrate.GetCurSel(),str);   //å¾—åˆ°æ³¢ç‰¹ç‡
 	UINT nBuad = atoi(str);
 	UINT iParity = m_cbVerifybit.GetCurSel();
-	m_cbDatabit.GetLBText(m_cbDatabit.GetCurSel(),str1);   //µÃµ½Êı¾İÎ»
+	m_cbDatabit.GetLBText(m_cbDatabit.GetCurSel(),str1);   //å¾—åˆ°æ•°æ®ä½
 	UINT nDatabit = atoi(str1);
 	UINT nStopbit = m_cbStopbit.GetCurSel();
 	if(m_SerialPort.InitPort(m_hWnd,nPort,nBuad,"NOE"[iParity],nDatabit,nStopbit,EV_RXFLAG | EV_RXCHAR,512))
 	{
-		char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
 		m_curLineNo = -1;
 		SetTimer(0,10000,NULL);
-		m_SerialPort.StartMonitoring();  //Æô¶¯´®¿ÚÍ¨ĞÅ¼ì²âÏß³Ìº¯Êı
-		send[1] = cmdGetTemperature;
-		m_SerialPort.WriteToPort(send,5); // È¡ÏÂÎ»»úµ±Ç°Êµ¼ÊÎÂ¶È
-		send[1] = cmdSettingLineNo;
-		send[2] = 0xff;
-		m_SerialPort.WriteToPort(send,5); // È¡ÏÂÎ»»úµ±Ç°¶ÎºÅ
+		m_SerialPort.StartMonitoring();  //å¯åŠ¨ä¸²å£é€šä¿¡æ£€æµ‹çº¿ç¨‹å‡½æ•°
+		downSend(cmdGetTemperature,0); // å–ä¸‹ä½æœºå½“å‰å®é™…æ¸©åº¦
+		downSend(cmdSettingLineNo,0xff);  // å–ä¸‹ä½æœºå½“å‰æ®µå·
 	}
 	else
 	{
-		MessageBox(_T("Ã»ÓĞ·¢ÏÖ´Ë´®¿Ú»òÕß±»Õ¼ÓÃ"));
+		MessageBox(_T("æ²¡æœ‰å‘ç°æ­¤ä¸²å£æˆ–è€…è¢«å ç”¨"));
 	}
 	m_bPortOpen = m_SerialPort.IsOpen();
 	GetDlgItem(IDC_BUTTON_OPENPORT)->EnableWindow(!m_bPortOpen);
@@ -541,9 +525,9 @@ void ChostDlg::OnBnClickedButtonOpenport() //´ò¿ª´®¿Ú°´Å¥ÏûÏ¢ÏìÓ¦º¯Êı
 }
 
 
-void ChostDlg::OnBnClickedButtonCloseport()  //¹Ø±Õ´®¿Ú°´Å¥ÏûÏ¢ÏìÓ¦º¯Êı
+void ChostDlg::OnBnClickedButtonCloseport()  //å…³é—­ä¸²å£æŒ‰é’®æ¶ˆæ¯å“åº”å‡½æ•°
 {
-	// TODO: ÔÚ´ËÌí¼Ó¿Ø¼şÍ¨Öª´¦Àí³ÌĞò´úÂë
+	// TODO: åœ¨æ­¤æ·»åŠ æ§ä»¶é€šçŸ¥å¤„ç†ç¨‹åºä»£ç 
 	m_SerialPort.ClosePort();
 	m_bPortOpen = m_SerialPort.IsOpen();
 	GetDlgItem(IDC_BUTTON_OPENPORT)->EnableWindow(!m_bPortOpen);
@@ -557,14 +541,14 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
 
 	// TODO: Change any attributes of the DC here  
-	switch (nCtlColor) //¶ÔËùÓĞÍ¬Ò»ÀàĞÍµÄ¿Ø¼ş½øĞĞÅĞ¶Ï  
+	switch (nCtlColor) //å¯¹æ‰€æœ‰åŒä¸€ç±»å‹çš„æ§ä»¶è¿›è¡Œåˆ¤æ–­  
 	{  
 	   // process my edit controls by ID.  
 	case CTLCOLOR_EDIT:  
-	case CTLCOLOR_MSGBOX://¼ÙÉè¿Ø¼şÊÇÎÄ±¾¿ò»òÕßÏûÏ¢¿ò£¬Ôò½øÈëÏÂÒ»¸öswitch  
-	   switch (pWnd->GetDlgCtrlID())//¶ÔÄ³Ò»¸öÌØ¶¨¿Ø¼ş½øĞĞÅĞ¶Ï  
+	case CTLCOLOR_MSGBOX://å‡è®¾æ§ä»¶æ˜¯æ–‡æœ¬æ¡†æˆ–è€…æ¶ˆæ¯æ¡†ï¼Œåˆ™è¿›å…¥ä¸‹ä¸€ä¸ªswitch  
+	   switch (pWnd->GetDlgCtrlID())//å¯¹æŸä¸€ä¸ªç‰¹å®šæ§ä»¶è¿›è¡Œåˆ¤æ–­  
 	   {      
-	   case IDC_EDIT_TEMPERATURE:         // Êµ¼ÊÎÂ¶ÈÎÄ±¾¿ò  
+	   case IDC_EDIT_TEMPERATURE:         // å®é™…æ¸©åº¦æ–‡æœ¬æ¡†  
 		// here  
 		pDC->SetBkColor(m_redcolor);    // change the background  
 		// color [background colour  
@@ -574,20 +558,20 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		// [this fills the control  
 		// rectangle]  
 		break;    
-	   case IDC_EDIT_SETTINGTEMPERATURE:         // Éè¶¨ÎÂ¶ÈÎÄ±¾¿ò  
+	   case IDC_EDIT_SETTINGTEMPERATURE:         // è®¾å®šæ¸©åº¦æ–‡æœ¬æ¡†  
 		// but control is still filled with the brush color!  
 		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
 		pDC->SetTextColor(m_textcolor); // change the text color  
 		hbr = (HBRUSH) m_bluebrush;     // apply the red brush [this fills the control rectangle]  
 		break;  
-	   case IDC_EDIT_AREAPAUSETIME:         // Éè¶¨ÎÂ¶ÈÎÄ±¾¿ò  
-	   case IDC_EDIT_RUNPAUSETIME:         // Éè¶¨ÎÂ¶ÈÎÄ±¾¿ò  
+	   case IDC_EDIT_AREAPAUSETIME:         // è®¾å®šæ¸©åº¦æ–‡æœ¬æ¡†  
+	   case IDC_EDIT_RUNPAUSETIME:         // è®¾å®šæ¸©åº¦æ–‡æœ¬æ¡†  
 		// but control is still filled with the brush color!  
 		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
 		//pDC->SetTextColor(m_textcolor); // change the text color  
 		hbr = (HBRUSH) m_yellowbrush;     // apply the red brush [this fills the control rectangle]  
 		break;  
-	   case IDC_EDIT_RUNNING:         // Éè¶¨ÎÂ¶ÈÎÄ±¾¿ò  
+	   case IDC_EDIT_RUNNING:         // è®¾å®šæ¸©åº¦æ–‡æœ¬æ¡†  
 		   if(m_runbrush){
 				// but control is still filled with the brush color!  
 				pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
@@ -605,21 +589,21 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
 void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-	// TODO: ÔÚ´ËÌí¼ÓÏûÏ¢´¦Àí³ÌĞò´úÂëºÍ/»òµ÷ÓÃÄ¬ÈÏÖµ
+	// TODO: åœ¨æ­¤æ·»åŠ æ¶ˆæ¯å¤„ç†ç¨‹åºä»£ç å’Œ/æˆ–è°ƒç”¨é»˜è®¤å€¼
 	int TempPos = pScrollBar->GetScrollPos();
 	switch(nSBCode)
 	{
-		case SB_THUMBPOSITION://ÍÏ¶¯»¬¿é
+		case SB_THUMBPOSITION://æ‹–åŠ¨æ»‘å—
 			pScrollBar->SetScrollPos(nPos);
 			break;
-		case SB_LINELEFT://µã»÷×ó±ßµÄ¼ıÍ·
+		case SB_LINELEFT://ç‚¹å‡»å·¦è¾¹çš„ç®­å¤´
 			if(TempPos > 0)
 			{
 				TempPos--;
 			}
 			pScrollBar->SetScrollPos(TempPos);
 		break;
-		case SB_LINERIGHT://µã»÷ÓÒ±ßµÄ¼ıÍ·
+		case SB_LINERIGHT://ç‚¹å‡»å³è¾¹çš„ç®­å¤´
 			if(TempPos<34560)
 			{
 				TempPos++;
@@ -632,7 +616,7 @@ void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
-// »æÖÆË®Æ½±ê³ß
+// ç»˜åˆ¶æ°´å¹³æ ‡å°º
 void ChostDlg::SetHStaff(void)
 {
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
@@ -653,7 +637,7 @@ void ChostDlg::SetHStaff(void)
 	GetDC()->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
 }
 
-// »æÖÆÎÂ¶ÈÇúÏß
+// ç»˜åˆ¶æ¸©åº¦æ›²çº¿
 void ChostDlg::DrawTemperatureLine(void)
 {
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
@@ -661,7 +645,7 @@ void ChostDlg::DrawTemperatureLine(void)
 	int nSizes=m_ptrArray[0].GetSize();
 	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
 	if(nSizes && nSizes > nCurpos){
-		//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// »æÖÆ±³¾°
+		//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// ç»˜åˆ¶èƒŒæ™¯
 		for(int j=0;j<2;j++){
 			m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
 			CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nCurpos);
@@ -678,23 +662,215 @@ void ChostDlg::DrawTemperatureLine(void)
 
 void ChostDlg::OnBnClickedButtonOption()
 {
-	// TODO: ÔÚ´ËÌí¼Ó¿Ø¼şÍ¨Öª´¦Àí³ÌĞò´úÂë
+	// TODO: åœ¨æ­¤æ·»åŠ æ§ä»¶é€šçŸ¥å¤„ç†ç¨‹åºä»£ç 
 	optionDlg dlg;
 	//m_pMainWnd = &dlg;
+	dlg.m_dryLines.assign(m_dryLines.begin(),m_dryLines.end());
+
+	dlg.m_cbHandPause = m_allowHandPause? "æ˜¯":"å¦";
+	dlg.m_cbLowPause = m_allowOperating[0]? "æ˜¯":"å¦";
+	dlg.m_cbTemperatureFilter = m_allowOperating[1]? "æ˜¯":"å¦";
+	dlg.m_cbOverHeratingWarning = m_allowOperating[2]? "æ˜¯":"å¦";
+	dlg.m_cbUltraLimitAlarming = m_allowOperating[3]? "æ˜¯":"å¦";
+	dlg.m_cbLowPauseValue = m_allowOperatingValue[0];
+	dlg.m_cbTemperatureFilterValue = m_allowOperatingValue[1];
+	dlg.m_cbOverHeratingValue = m_allowOperatingValue[2];
+	dlg.m_cbUltraLimitAlarmingValue = m_allowOperatingValue[3];
+	dlg.m_edTemperatureUpTime = m_upTemperatureTime;
+	dlg.m_edSetTemperatureDownTime = m_downSetTemperatureTime;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{
-		// TODO: ÔÚ´Ë·ÅÖÃ´¦ÀíºÎÊ±ÓÃ
-		//  ¡°È·¶¨¡±À´¹Ø±Õ¶Ô»°¿òµÄ´úÂë
+		// TODO: åœ¨æ­¤æ”¾ç½®å¤„ç†ä½•æ—¶ç”¨
+		//  â€œç¡®å®šâ€æ¥å…³é—­å¯¹è¯æ¡†çš„ä»£ç 
+		m_dryLines.clear();
+		m_dryLines.assign(dlg.m_dryLines.begin(),dlg.m_dryLines.end());
+		m_allowHandPause = dlg.m_cbHandPause=="æ˜¯";
+		m_allowOperating[0] = dlg.m_cbLowPause=="æ˜¯";
+		m_allowOperating[1] = dlg.m_cbTemperatureFilter=="æ˜¯";
+		m_allowOperating[2] = dlg.m_cbOverHeratingWarning=="æ˜¯";
+		m_allowOperating[3] = dlg.m_cbUltraLimitAlarming=="æ˜¯";
+		m_allowOperatingValue[0] = dlg.m_cbLowPauseValue;
+		m_allowOperatingValue[1] = dlg.m_cbTemperatureFilterValue;
+		m_allowOperatingValue[2] = dlg.m_cbOverHeratingValue;
+		m_allowOperatingValue[3] = dlg.m_cbUltraLimitAlarmingValue;
+		m_upTemperatureTime = dlg.m_edTemperatureUpTime;
+		m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
 	}
 	else if (nResponse == IDCANCEL)
 	{
-		// TODO: ÔÚ´Ë·ÅÖÃ´¦ÀíºÎÊ±ÓÃ
-		//  ¡°È¡Ïû¡±À´¹Ø±Õ¶Ô»°¿òµÄ´úÂë
+		// TODO: åœ¨æ­¤æ”¾ç½®å¤„ç†ä½•æ—¶ç”¨
+		//  â€œå–æ¶ˆâ€æ¥å…³é—­å¯¹è¯æ¡†çš„ä»£ç 
 	}
 	else if (nResponse == -1)
 	{
-		TRACE(traceAppMsg, 0, "¾¯¸æ: ¶Ô»°¿ò´´½¨Ê§°Ü£¬Ó¦ÓÃ³ÌĞò½«ÒâÍâÖÕÖ¹¡£\n");
-		TRACE(traceAppMsg, 0, "¾¯¸æ: Èç¹ûÄúÔÚ¶Ô»°¿òÉÏÊ¹ÓÃ MFC ¿Ø¼ş£¬ÔòÎŞ·¨ #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS¡£\n");
+		TRACE(traceAppMsg, 0, "è­¦å‘Š: å¯¹è¯æ¡†åˆ›å»ºå¤±è´¥ï¼Œåº”ç”¨ç¨‹åºå°†æ„å¤–ç»ˆæ­¢ã€‚\n");
+		TRACE(traceAppMsg, 0, "è­¦å‘Š: å¦‚æœæ‚¨åœ¨å¯¹è¯æ¡†ä¸Šä½¿ç”¨ MFC æ§ä»¶ï¼Œåˆ™æ— æ³• #define _AFX_NO_MFC_CONTROLS_IN_DIALOGSã€‚\n");
+	}
+}
+
+
+BOOL ChostDlg::DestroyWindow()
+{
+	// TODO: åœ¨æ­¤æ·»åŠ ä¸“ç”¨ä»£ç å’Œ/æˆ–è°ƒç”¨åŸºç±»
+	CoUninitialize();
+
+	return CDialogEx::DestroyWindow();
+}
+
+
+void ChostDlg::loadXLM(void)
+{
+	//è¯»å–XML 
+	spDoc.CoCreateInstance(CLSID_DOMDocument); 
+	VARIANT_BOOL vb; 
+	spDoc->load(CComVariant(OLESTR("dryHost.xml")), &vb); //åŠ è½½XMLæ–‡ä»¶ 
+	spDoc->get_documentElement(&spRootEle); //æ ¹èŠ‚ç‚¹ 
+	CComPtr<IXMLDOMNodeList> spNodeList,spNodeList1; 
+
+	// å–å¹²ç‡¥æ›²çº¿å‚æ•°
+	spDoc->selectNodes(OLESTR("/root/lines/*"), &spNodeList); //å¾—åˆ°node2ä¸‹çš„æ‰€æœ‰å­èŠ‚ç‚¹ 
+	long nLen; 
+	spNodeList->get_length(&nLen); //å­èŠ‚ç‚¹æ•° 
+	for (long i = 0; i < nLen; ++i) //éå†å­èŠ‚ç‚¹ 
+	{ 
+		CComPtr<IXMLDOMNode> spNode,chNode,chNode1,chNode2; 
+		spNodeList->get_item(i, &spNode); 
+		BSTR temperature,rate,time;
+		spNode->get_firstChild(&chNode);
+		chNode->get_text(&temperature); //èŠ‚ç‚¹å€¼ 
+		chNode->get_nextSibling(&chNode1);
+		chNode1->get_text(&rate); //èŠ‚ç‚¹å€¼ 
+		chNode1->get_nextSibling(&chNode2);
+		chNode2->get_text(&time); //èŠ‚ç‚¹å€¼ 
+
+		CString s0(temperature),s1(rate),s2(time);
+		vector <int> line; 
+		line.push_back(atoi(s0));
+		line.push_back(atoi(s1));
+		line.push_back(atoi(s2));
+		m_dryLines.push_back(line);
+	
+	} 
+	CComPtr<IXMLDOMNode> spNode,spNode1,spNode2;
+	BSTR tem;
+	CString str;
+	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"),&spNode);
+	spNode->get_text(&tem);
+	str = tem;
+	m_upTemperatureTime = atoi(str);
+	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"),&spNode1);
+	spNode1->get_text(&tem);
+	str = tem;
+	m_downSetTemperatureTime = atoi(str);
+	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"),&spNode2);
+	spNode2->get_text(&tem);
+	m_allowHandPause = (CString)tem=="TRUE";
+
+	spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //å¾—åˆ°node2ä¸‹çš„æ‰€æœ‰å­èŠ‚ç‚¹ 
+
+	for(int i=0;i<4;i++){
+		CComPtr<IXMLDOMNode> cpNode,spNodeAttrib0,spNodeAttrib1;
+		CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap; 
+		BSTR a1,a2;
+		spNodeList1->get_item(i+4, &cpNode); 
+		cpNode->get_attributes(&spNameNodeMap);
+		spNameNodeMap->get_item(0, &spNodeAttrib0); 
+		spNodeAttrib0->get_text(&a1);
+		m_allowOperating[i] = (CString)a1 == "TRUE";
+		spNameNodeMap->get_item(1, &spNodeAttrib1); 
+		spNodeAttrib1->get_text(&a2);
+		str = a2;
+		m_allowOperatingValue[i] = atoi(str);
+	}
+}
+
+// ç»“æŸå¹²ç‡¥
+void ChostDlg::endDry(void)
+{
+	KillTimer(1);
+	downSend(cmdSettingLineNo,0);// è®¾ç½®ä¸‹ä½æœºå½“å‰æ®µå·ä¸º 0
+	downSend(cmdRunningStatus,4);// è®¾ç½®ä¸‹ä½æœºå½“å‰è¿è¡ŒçŠ¶æ€ä¸º 4(ç»“æŸ)
+}
+
+// å‘ä¸‹ä½æœºå‘é€æŒ‡ä»¤æˆ–ä¼ é€æ•°æ®
+void ChostDlg::downSend(char cmd, WORD degress)
+{
+	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
+	send[1] = cmd;
+	*(WORD*)(send+2) = degress;
+	m_SerialPort.WriteToPort(send,5);
+}
+
+
+void ChostDlg::saveXML(void)
+{
+	CComPtr<IXMLDOMNodeList> spNodeList,spNodeList1; 
+
+	// å–å¹²ç‡¥æ›²çº¿å‚æ•°
+	spDoc->selectNodes(OLESTR("/root/lines/*"), &spNodeList); //å¾—åˆ°node2ä¸‹çš„æ‰€æœ‰å­èŠ‚ç‚¹ 
+	
+	long nLen; 
+	spNodeList->get_length(&nLen); //å­èŠ‚ç‚¹æ•° 
+	for (long i = 0; i < nLen; ++i) //éå†å­èŠ‚ç‚¹ 
+	{ 
+		CComPtr<IXMLDOMNode> spNode;
+		spNodeList->get_item(i, &spNode);
+		if(i<m_dryLines.size()){
+			CComPtr<IXMLDOMNode> chNode,chNode1,chNode2; 
+			CString s[3];
+			BSTR bs[3];
+			for(int j=0;j<3;j++){
+				s[j].Format("%d",m_dryLines[i][j]);
+				bs[j] = s[j].AllocSysString();
+			}
+			spNode->get_firstChild(&chNode);
+			chNode->put_text(bs[0]); //èŠ‚ç‚¹å€¼ 
+			chNode->get_nextSibling(&chNode1);
+			chNode1->put_text(bs[1]); //èŠ‚ç‚¹å€¼ 
+			chNode1->get_nextSibling(&chNode2);
+			chNode2->put_text(bs[2]); //èŠ‚ç‚¹å€¼ 
+		}	
+	} 
+	CComPtr<IXMLDOMNode> spNode,spNode1,spNode2;
+	BSTR tem;
+	CString str;
+	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"),&spNode);
+	str.Format("%d",m_upTemperatureTime);
+	tem = str.AllocSysString();
+	spNode->put_text(tem);
+	SysFreeString(tem); //Â ç”¨å®Œé‡Šæ”¾
+
+	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"),&spNode1);
+	str.Format("%d",m_downSetTemperatureTime);
+	tem = str.AllocSysString();
+	spNode1->put_text(tem);
+	SysFreeString(tem); //Â ç”¨å®Œé‡Šæ”¾
+
+	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"),&spNode2);
+	str = m_allowHandPause? "TRUE":"FALSE";
+	tem = str.AllocSysString();
+	spNode2->put_text(tem);
+	SysFreeString(tem);//Â ç”¨å®Œé‡Šæ”¾
+
+	spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //å¾—åˆ°node2ä¸‹çš„æ‰€æœ‰å­èŠ‚ç‚¹ 
+
+	for(int i=0;i<4;i++){
+		CComPtr<IXMLDOMNode> cpNode,spNodeAttrib0,spNodeAttrib1;
+		CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap; 
+		BSTR a1,a2;
+		spNodeList1->get_item(i+4, &cpNode); 
+		cpNode->get_attributes(&spNameNodeMap);
+		spNameNodeMap->get_item(0, &spNodeAttrib0); 
+		CString astr = m_allowOperating[i]?  "TRUE":"FALSE";
+		a1 = astr.AllocSysString();
+		spNodeAttrib0->put_text(a1);
+		SysFreeString(a1); //Â ç”¨å®Œé‡Šæ”¾
+
+		spNameNodeMap->get_item(1, &spNodeAttrib1); 
+		astr.Format("%d",m_allowOperatingValue[i]);
+		a2 = astr.AllocSysString();
+		spNodeAttrib1->put_text(a2);
+		SysFreeString(a2); //Â ç”¨å®Œé‡Šæ”¾
 	}
 }

@@ -5,6 +5,8 @@
 
 #include "SerialPort.h"
 #include "afxwin.h"
+#include   <vector>   
+using   namespace   std;   
 	
 const char cmdGetTemperature = '\x00';
 const char cmdSettingTemperature = '\x10';
@@ -13,7 +15,7 @@ const char cmdRunningStatus = '\x30';
 
 const CString dryRunningStatus[]={"升温","保温","降温","暂停","结束"};
 
-const int m_dryLine[8][3]={50,5,0,50,0,16,85,5,0,85,0,16,95,5,0,95,0,16,120,3,0,120,0,16};
+//const int m_dryLine[8][3]={50,5,0,50,0,16,85,5,0,85,0,16,95,5,0,95,0,16,120,3,0,120,0,16};
 
 // ChostDlg 对话框
 class ChostDlg : public CDialogEx
@@ -50,8 +52,6 @@ private:
 	BYTE v_portin[5];
 	short int v_lastTemperature;
 	int v_index;
-	BOOL m_smooth; // 是否允许温度突变
-	BOOL m_canPause; // 是否允许程序暂停
 	int m_smoothvalue; // 允许温度突变最大值
 
 	int m_curLineNo; // 当前干燥曲线段号
@@ -101,6 +101,22 @@ public:
 private:
 	void SetHStaff(void);
 public:
+	vector< vector<int> > m_dryLines;
+	int m_upTemperatureTime;  // 下位机向上位机传送实时温度时间间隔
+	int m_downSetTemperatureTime;  // 向下位机下达设定温度时间间隔
+	BOOL m_allowHandPause; // 是否允许手动暂停
+	BOOL m_allowOperating[4]; // 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警
+	int m_allowOperatingValue[4]; // 允许操作条件下的温度阈值
 	void DrawTemperatureLine(void);
 	afx_msg void OnBnClickedButtonOption();
+	virtual BOOL DestroyWindow();
+private:
+	CComPtr<IXMLDOMDocument> spDoc; //DOM 
+	CComPtr<IXMLDOMElement> spRootEle; 
+	void loadXLM(void);
+	void endDry(void);
+public:
+	void downSend(char cmd, WORD degress);
+private:
+	void saveXML(void);
 };

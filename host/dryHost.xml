@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root> 
+
+<lines>
+  <line>
+    <temperature>50</temperature>
+    <rate>5</rate>
+    <time>0</time>
+  </line>
+  <line>
+    <temperature>50</temperature>
+    <rate>0</rate>
+    <time>16</time>
+  </line>
+  <line>
+    <temperature>90</temperature>
+    <rate>5</rate>
+    <time>0</time>
+  </line>
+  <line>
+    <temperature>90</temperature>
+    <rate>0</rate>
+    <time>16</time>
+  </line>
+  <line>
+    <temperature>120</temperature>
+    <rate>5</rate>
+    <time>0</time>
+  </line>
+  <line>
+    <temperature>120</temperature>
+    <rate>0</rate>
+    <time>16</time>
+  </line>
+</lines> 
+
+<uptemperaturetime>10</uptemperaturetime>
+<downsettemperaturetime>60</downsettemperaturetime>
+<allowhandpause>TRUE</allowhandpause>
+  
+  <lowtemperaturepause allow="TRUE" value="3" />
+  <temperaturefilter allow="FALSE" value="1" />
+  <overheadingwarning allow="TRUE" value="2" />
+  <ultralimitalarm allow="TRUE" value="3" />
+
+
+</root> 

@@ -6,7 +6,6 @@
 #include "optionDlg.h"
 #include "afxdialogex.h"
 
-
 // optionDlg 对话框
 
 IMPLEMENT_DYNAMIC(optionDlg, CDialogEx)
@@ -26,6 +25,8 @@ optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	, m_edLineHeatingRate(_T(""))
 	, m_edLineTimeLength(_T(""))
 	, m_ltLine(_T(""))
+	, m_edTemperatureUpTime(0)
+	, m_edSetTemperatureDownTime(0)
 {
 	m_cbLowPauseValue = 3;
 	m_cbTemperatureFilterValue = 1;
@@ -58,6 +59,11 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_TIMELENGTH, m_edLineTimeLength);
 	DDX_LBString(pDX, IDC_LIST_LINE, m_ltLine);
 	DDX_Control(pDX, IDC_EDIT_ENDTEMPERATURE, m_edtLineTemperature);
+	DDX_Control(pDX, IDC_LIST_LINE, m_lstLine);
+	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE2, m_edTemperatureUpTime);
+	DDV_MinMaxInt(pDX, m_edTemperatureUpTime, 1, 60);
+	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE3, m_edSetTemperatureDownTime);
+	DDV_MinMaxInt(pDX, m_edSetTemperatureDownTime, 1, 3600);
 }
 
 
@@ -67,6 +73,15 @@ BEGIN_MESSAGE_MAP(optionDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_EDIT_ENDTEMPERATURE, &optionDlg::OnChangeEditLine)
 	ON_EN_CHANGE(IDC_EDIT_HEATINGRATE, &optionDlg::OnChangeEditLine)
 	ON_EN_CHANGE(IDC_EDIT_TIMELENGTH, &optionDlg::OnChangeEditLine)
+	ON_BN_CLICKED(ID_SAVE, &optionDlg::OnBnClickedSave)
+	ON_LBN_SELCHANGE(IDC_LIST_LINE, &optionDlg::OnSelchangeListLine)
+	//ON_BN_CLICKED(ID_SAVE2, &optionDlg::OnBnClickedSave2)
+	ON_BN_CLICKED(ID_EDIT, &optionDlg::OnBnClickedEdit)
+	ON_BN_CLICKED(ID_DELETE, &optionDlg::OnBnClickedDelete)
+	ON_BN_CLICKED(ID_UP, &optionDlg::OnBnClickedUp)
+	ON_BN_CLICKED(ID_DOWN, &optionDlg::OnBnClickedDown)
+	ON_WM_ACTIVATE()
+	ON_BN_CLICKED(IDOK, &optionDlg::OnBnClickedOk)
 END_MESSAGE_MAP()
 
 
@@ -82,12 +97,16 @@ void optionDlg::OnCbnSelchangeComboHandpause()
 void optionDlg::OnBnClickedAdd()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	m_LineEditMode = -1;
 	m_edLineTemperature = _T("");
 	m_edLineHeatingRate = _T("");
 	m_edLineTimeLength = _T("");
 	UpdateData(FALSE); 
-	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->SetFocus();
 	GetDlgItem(ID_SAVE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_HEATINGRATE)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_TIMELENGTH)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->SetFocus();
 }
 
 
@@ -103,3 +122,196 @@ void optionDlg::OnChangeEditLine()
 	GetDlgItem(ID_SAVE)->EnableWindow(!m_edLineTemperature.IsEmpty()  && !m_edLineHeatingRate.IsEmpty() && !m_edLineTimeLength.IsEmpty());
 }
 
+
+
+void optionDlg::OnBnClickedSave()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UpdateData(); 
+	int n;
+	char *fmt = "%%%ds%%%ds%%%ds";
+	char fmt1[13];
+	char record[60];
+	sprintf(fmt1,fmt,13-m_edLineTemperature.GetLength() ,21-m_edLineHeatingRate.GetLength() ,19-m_edLineTimeLength.GetLength());
+	sprintf(record,fmt1,m_edLineTemperature,m_edLineHeatingRate,m_edLineTimeLength);
+	GetDlgItem(IDC_LIST_LINE)->EnableWindow(TRUE);
+	if(m_LineEditMode>=0){
+		m_lstLine.DeleteString(m_LineEditMode);
+		n = m_lstLine.InsertString(m_LineEditMode,record);
+	}else
+		n = m_lstLine.AddString(record);
+	m_lstLine.SelectString(n,record);
+	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_EDIT_HEATINGRATE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_EDIT_TIMELENGTH)->EnableWindow(FALSE);
+	m_edLineTemperature = _T("");
+	m_edLineHeatingRate = _T("");
+	m_edLineTimeLength = _T("");
+	UpdateData(FALSE); 
+	GetDlgItem(ID_SAVE)->EnableWindow(FALSE);
+	OnSelchangeListLine();
+}
+
+
+void optionDlg::OnSelchangeListLine()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int i = m_lstLine.GetCurSel();
+	BOOL c = m_lstLine.GetSelCount();
+	GetDlgItem(ID_EDIT)->EnableWindow(c);
+	GetDlgItem(ID_DELETE)->EnableWindow(c);
+	GetDlgItem(ID_UP)->EnableWindow(c && i>0);
+	GetDlgItem(ID_DOWN)->EnableWindow(c && i<m_lstLine.GetCount()-1);
+
+}
+
+
+void optionDlg::OnBnClickedSave2()
+{
+	// TODO: 在此添加控件通知处理程序代码
+}
+
+
+void optionDlg::OnBnClickedEdit()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString s;
+	vector<int> v;
+	int flag=0,k=0;
+	m_LineEditMode = m_lstLine.GetCurSel();
+	m_lstLine.GetText(m_LineEditMode,s);
+	strToArray(s,v);
+	m_edLineTemperature.Format("%d",v[0]);
+	m_edLineHeatingRate.Format("%d",v[1]);
+	m_edLineTimeLength.Format("%d",v[2]);
+
+	UpdateData(FALSE); 
+	GetDlgItem(ID_SAVE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_HEATINGRATE)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_TIMELENGTH)->EnableWindow(TRUE);
+	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->SetFocus();
+}
+
+
+void optionDlg::OnBnClickedDelete()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UINT i = m_lstLine.GetCurSel();
+	if(i>=0){
+		m_lstLine.DeleteString(i);
+		OnSelchangeListLine();
+	}
+}
+
+
+void optionDlg::OnBnClickedUp()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UINT i = m_lstLine.GetCurSel();
+	if(i>0){
+		CString s0,s1;
+		m_lstLine.GetText(i-1,s0);
+		m_lstLine.GetText(i,s1);
+		m_lstLine.DeleteString(i);
+		m_lstLine.DeleteString(i-1);
+		m_lstLine.InsertString(i-1,s0);
+		m_lstLine.InsertString(i-1,s1);
+		m_lstLine.SelectString(i-1,s1);
+		OnSelchangeListLine();
+
+	}
+}
+
+
+void optionDlg::OnBnClickedDown()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UINT i = m_lstLine.GetCurSel();
+	if(i<m_lstLine.GetCount()-1){
+		CString s0,s1;
+		m_lstLine.GetText(i+1,s0);
+		m_lstLine.GetText(i,s1);
+		m_lstLine.DeleteString(i+1);
+		m_lstLine.DeleteString(i);
+		m_lstLine.InsertString(i,s1);
+		m_lstLine.InsertString(i,s0);
+		m_lstLine.SelectString(i,s1);
+		OnSelchangeListLine();
+
+	}
+}
+
+
+int optionDlg::loadXML(void)
+{
+	char *fmt = "%%%dd%%%dd%%%dd";
+	int nLen = m_dryLines.size();
+	for (int i = 0; i < nLen; ++i) //遍历子节点 
+	{ 
+		char fmt1[20]={0};
+		char record[60]={0};
+		sprintf(fmt1,fmt,13-digits(m_dryLines[i][0]) ,21-digits(m_dryLines[i][1]) ,19-digits(m_dryLines[i][2]));
+		sprintf(record,fmt1,m_dryLines[i][0],m_dryLines[i][1],m_dryLines[i][2]);
+		m_lstLine.AddString(record);
+	} 
+	return 0;
+}
+
+
+BOOL optionDlg::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+
+	// TODO:  在此添加额外的初始化
+	loadXML();
+	return TRUE;  // return TRUE unless you set the focus to a control
+	// 异常: OCX 属性页应返回 FALSE
+}
+
+
+int optionDlg::digits(int n)
+{
+	int digit=1;
+    while(n/=10)++digit;
+	return digit;
+}
+
+
+void optionDlg::OnBnClickedOk()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int nLen = m_lstLine.GetCount();
+	m_dryLines.clear();
+	for(int i=0;i<nLen;i++){
+		CString str;
+		vector<int> line;
+		m_lstLine.GetText(i,str);
+		strToArray(str,line);
+		m_dryLines.push_back(line);
+	}
+	UpdateData(); 
+	CDialogEx::OnOK();
+}
+
+
+void optionDlg::strToArray(CString str, vector<int>& intArray)
+{
+	char v[3][4]={'\0'};
+	int flag=0,k=0;
+	for(int i=0,j=0;i<str.GetLength();i++){
+		if(str[i]==' '){
+			if(flag==1){
+				j++;
+				k = 0;
+			}
+			flag = 0;
+		}else{
+			flag = 1;
+			v[j][k++] = str[i];
+		}
+	}
+	intArray.push_back(atoi(v[0]));
+	intArray.push_back(atoi(v[1]));
+	intArray.push_back(atoi(v[2]));
+}
