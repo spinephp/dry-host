@@ -696,6 +696,7 @@ void ChostDlg::OnBnClickedButtonOption()
 		m_allowOperatingValue[3] = dlg.m_cbUltraLimitAlarmingValue;
 		m_upTemperatureTime = dlg.m_edTemperatureUpTime;
 		m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
+		saveXML();
 	}
 	else if (nResponse == IDCANCEL)
 	{
@@ -806,31 +807,40 @@ void ChostDlg::downSend(char cmd, WORD degress)
 void ChostDlg::saveXML(void)
 {
 	CComPtr<IXMLDOMNodeList> spNodeList,spNodeList1; 
+	CComPtr<IXMLDOMNode> linesNode;
 
 	// 取干燥曲线参数
 	spDoc->selectNodes(OLESTR("/root/lines/*"), &spNodeList); //得到node2下的所有子节点 
-	
+	spDoc->selectSingleNode(OLESTR("/root/lines"), &linesNode); //得到node2下的所有子节点 
 	long nLen; 
 	spNodeList->get_length(&nLen); //子节点数 
 	for (long i = 0; i < nLen; ++i) //遍历子节点 
 	{ 
 		CComPtr<IXMLDOMNode> spNode;
 		spNodeList->get_item(i, &spNode);
-		if(i<m_dryLines.size()){
-			CComPtr<IXMLDOMNode> chNode,chNode1,chNode2; 
-			CString s[3];
-			BSTR bs[3];
-			for(int j=0;j<3;j++){
-				s[j].Format("%d",m_dryLines[i][j]);
-				bs[j] = s[j].AllocSysString();
-			}
-			spNode->get_firstChild(&chNode);
-			chNode->put_text(bs[0]); //节点值 
-			chNode->get_nextSibling(&chNode1);
-			chNode1->put_text(bs[1]); //节点值 
-			chNode1->get_nextSibling(&chNode2);
-			chNode2->put_text(bs[2]); //节点值 
-		}	
+		linesNode->removeChild(spNode,NULL);
+	}
+	for (long i = 0; i < m_dryLines.size(); ++i) //遍历子节点 
+	{ 
+		CComPtr<IXMLDOMElement> lineEle,temperatureEle,rateEle,timeEle; 
+		CString s[3];
+		BSTR bs[3];
+		for(int j=0;j<3;j++){
+			s[j].Format("%d",m_dryLines[i][j]);
+			bs[j] = s[j].AllocSysString();
+		}
+		spDoc->createElement(OLESTR("line"),&lineEle);
+		spDoc->createElement(OLESTR("temperatureEle"),&temperatureEle);
+		spDoc->createElement(OLESTR("rate"),&rateEle);
+		spDoc->createElement(OLESTR("time"),&timeEle);
+		temperatureEle->put_text(bs[0]);
+		rateEle->put_text(bs[1]);
+		timeEle->put_text(bs[2]);
+		lineEle->appendChild(temperatureEle,NULL);
+		lineEle->appendChild(rateEle,NULL);
+		lineEle->appendChild(timeEle,NULL);
+		
+		linesNode->appendChild(lineEle,NULL);
 	} 
 	CComPtr<IXMLDOMNode> spNode,spNode1,spNode2;
 	BSTR tem;
@@ -873,4 +883,5 @@ void ChostDlg::saveXML(void)
 		spNodeAttrib1->put_text(a2);
 		SysFreeString(a2); // 用完释放
 	}
+	spDoc->save(CComVariant(OLESTR("dryHost.xml")));
 }
