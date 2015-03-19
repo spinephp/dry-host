@@ -106,6 +106,7 @@
     <ClInclude Include="..\..\dry-host\host\resource.h" />
     <ClInclude Include="host.h" />
     <ClInclude Include="hostDlg.h" />
+    <ClInclude Include="interruptDlg.h" />
     <ClInclude Include="optionDlg.h" />
     <ClInclude Include="SerialPort.h" />
     <ClInclude Include="stdafx.h" />
@@ -114,6 +115,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\dry-host\host\hostDlg.cpp" />
     <ClCompile Include="host.cpp" />
+    <ClCompile Include="interruptDlg.cpp" />
     <ClCompile Include="optionDlg.cpp" />
     <ClCompile Include="SerialPort.cpp" />
     <ClCompile Include="stdafx.cpp">

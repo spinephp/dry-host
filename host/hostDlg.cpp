@@ -9,8 +9,10 @@
 #include "host.h"
 #include "hostDlg.h"
 #include "optionDlg.h"
+#include "interruptDlg.h"
 #include "afxdialogex.h"
 #include "windows.h"
+#include <stdlib.h> 
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -122,6 +124,7 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_WM_CTLCOLOR()
 	ON_WM_HSCROLL()
 	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
+	ON_BN_CLICKED(IDC_BUTTON_START, &ChostDlg::OnBnClickedButtonStart)
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -310,10 +313,11 @@ HCURSOR ChostDlg::OnQueryDragIcon()
 LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 {
 	v_portin[v_index++] = ch;
-	if(v_portin[v_index-1]==0xfe && v_index==5){ //接收完毕
+	if(v_portin[v_index-1]==0xfe && (v_index==5 || v_index==13)){ //接收完毕
 		CString str; 
-		BYTE cmd = v_portin[1];
+		char cmd = v_portin[1];
 		short int temperature;
+		float temper;
 		v_index = 0;
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
@@ -325,50 +329,12 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					str.Format("%5.1f",temperature*0.0625); 
 					m_lbTemperature = strtod(str,NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
 					if(m_curLineNo>-1){// 干燥已开始
-						m_Pause = FALSE;
 						if(((int)m_lbSettingtemperature)==-100){
 							m_lbSettingtemperature = m_lbTemperature;
 							m_edtArea.Format("%d℃ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
 						}
-						
-						if(m_lbTemperature < m_lbSettingtemperature-m_allowOperatingValue[2]){
-							// 温度低
-							if(m_allowOperating[2])
-								Beep (1000,1000);
-							m_edtRunning = "温度低";
-							m_runbrush = &m_yellowbrush;
-							if(m_lbTemperature < m_lbSettingtemperature-m_allowOperatingValue[3]){
-								m_edtRunning = "温度低，暂停";
-								m_runbrush = &m_redbrush;
-								if(m_allowOperating[3])
-									Beep (2000,500);
-								if(m_allowOperating[0]) // 是否允许低温暂停
-									m_Pause = TRUE;
-							}
-						}else if(m_lbTemperature > m_lbSettingtemperature+m_allowOperatingValue[2]){
-							// 温度高
-							m_edtRunning = "温度高";
-							if(m_allowOperating[2])
-								Beep (1000,500);
-							m_runbrush = &m_yellowbrush;
-							if(m_lbTemperature > m_lbSettingtemperature+m_allowOperatingValue[3]){
-								if(m_allowOperating[3])
-									Beep (2000,1000);
-								m_edtRunning = "温度高!!!";
-								m_runbrush = &m_redbrush;
-							}
-						}else{ // 温度正常
-							m_edtRunning = "正常";
-							m_runbrush = &m_greenbrush;
-						}
-
-						CPoint pt(m_TotalTimes,m_lbTemperature+50);
-						CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
-						m_dcMem.DPtoLP(&pt);
-						m_dcMem.DPtoLP(&pt1);
-						m_ptrArray[0].Add(new CGraph(0,pt));
-						m_ptrArray[1].Add(new CGraph(0,pt1));
-						DrawTemperatureLine();
+						adjuster(temperature*0.0625);
+						savePoint(temperature*0.0625);
 					}else{
 						m_edtRunning = "未开始";
 						m_runbrush = NULL;
@@ -378,22 +344,107 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					m_dataInvalid++;
 				}
 				break;
-			case cmdSettingTemperature: // 下位机当前的设定温度
+			case cmdGetSettingTemperature: // 下位机当前的设定温度
+				temperature = *(short int*)(v_portin+2);
+				temper = temperature*0.0625;
+				for(UINT i=0;i<m_fnSettingTemperature.size();i++){
+					FNsettingTemperature fun = m_fnSettingTemperature[i];
+					(fun)(temper);
+				}
 				break;
-			case cmdSettingLineNo: // 下位机当前段号
+			case cmdGetLineNo: // 下位机当前段号
+				break;
+			case cmdGetAll: // 下位机当前段号
 				switch(v_portin[2]){
-				case 0: // 干燥未进行
-					m_curLineNo = 0;
-					m_curLineTime = 0;
-					m_TotalTime = 0;
-					m_TotalTimes = 0;
-					m_curLinePauseTime = 0;
-					m_TotalPauseTime = 0;
-					m_dataInvalid = 0;
-					downSend(cmdSettingLineNo,1);// 设置下位机当前段号为 1
-					downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
-					SetTimer(1,60000,NULL);
+				case 0xff: // 干燥未进行
+					GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
 					break;
+				default:
+					div_t h_m;
+					interruptDlg dlg;
+					//m_fnSettingTemperature.push_back(std::tr1::bind(&interruptDlg::setSettingTemperature,&dlg,std::placeholders::_1));
+					//m_pMainWnd = &dlg;
+					for(int i=0;i<m_dryLines.size();i++){
+						CString str;
+						str.Format("%d℃ %s",m_dryLines[i][0],m_dryLines[i][1]>0? _T("升温"):(m_dryLines[i][1]==0? _T("保温"):_T("降温")));
+						dlg.m_lineNames.push_back(str);
+					}
+					m_curLineNo = *(WORD*)(v_portin+2)-1;
+					dlg.m_curSelLine = m_curLineNo;
+					dlg.m_edLineName.Format("%d℃ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
+					m_lbSettingtemperature = (*(WORD*)(v_portin+4))*0.0625;
+					dlg.m_edSetingTemperature = m_lbSettingtemperature;
+					h_m = div(*(WORD*)(v_portin+6)/6,60);
+					m_edtRunTime.Format("%2d:%02d",h_m.quot,h_m.rem);
+					dlg.m_edAllTime = m_edtRunTime;
+					h_m = div(*(WORD*)(v_portin+8),60);
+					m_edtAreaTime.Format("%2d:%02d",h_m.quot,h_m.rem);
+					dlg.m_edLineTime = m_edtAreaTime;
+					dlg.m_edSetingTemperature = m_lbSettingtemperature;
+					m_lbTemperature = (*(WORD*)(v_portin+10))*0.0625;
+					dlg.m_edTemperature = m_lbTemperature;
+					INT_PTR nResponse = dlg.DoModal();
+					if (nResponse == IDOK)
+					{
+						// TODO: 在此放置处理何时用
+						//  “确定”来关闭对话框的代码
+						m_curLinePauseTime = 0;
+						m_TotalTimes = timeToSecond(dlg.m_edAllTime);
+						m_TotalPauseTime = 0;
+						m_curLineNo = dlg.m_curSelLine;
+						switch(dlg.m_rdAutoRun){
+						case 0:
+							m_curLineTime = 0;
+							m_Pause = false;
+							while(m_lbSettingtemperature<m_lbTemperature){
+								OnTimer(1);
+							}
+							SetTimer(1,60000,NULL);
+							break;
+						case 1: // in temperature
+							m_curLineTime;
+							m_Pause = false;
+							while(m_lbSettingtemperature<m_lbTemperature){
+								OnTimer(1);
+							}
+							SetTimer(1,60000,NULL);
+							break;
+						case 2: // in time
+							m_curLineTime = timeToSecond(dlg.m_edLineTime);
+							SetTimer(1,60000,NULL);
+							break;
+						case 3: // from current line begin
+							goNextLine();
+							SetTimer(1,60000,NULL);
+							break;
+						case 4: // from head
+							OnBnClickedButtonStart();
+							break;
+						}
+						UpdateData();
+					}
+					else if (nResponse == IDCANCEL)
+					{
+						// TODO: 在此放置处理何时用
+						//  “取消”来关闭对话框的代码
+					}
+					else if (nResponse == -1)
+					{
+						TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+						TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+					}
+				}
+				break;
+			case cmdGetLineTime: // 下位机当前段运行时间,单位：分
+				for(UINT i=0;i<m_fnSettingTemperature.size();i++){
+					FNsettingTemperature fun = m_fnSettingTemperature[i];
+					(fun)(*(short int*)(v_portin+2));
+				}
+				break;
+			case cmdGetTime: // 下位机当前段运行时间,单位：分
+				for(UINT i=0;i<m_fnSettingTemperature.size();i++){
+					FNsettingTemperature fun = m_fnSettingTemperature[i];
+					(fun)(*(short int*)(v_portin+2));
 				}
 				break;
 			case cmdRunningStatus: // 下位机当前段运行时间,单位：分
@@ -405,15 +456,15 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 
 void  ChostDlg::OnTimer(UINT nIDEvent)
 {
-	char tem[20];
 	float at = 0.0;
+	div_t h_m;
 	switch(nIDEvent){
 	case 0:
 		downSend(cmdGetTemperature,0);// 通知下位机发送当前实际温度
 		m_TotalTimes++;
 		break;
 	case 1:
-		m_TotalTime++;
+		//m_TotalTime++;
 		if(m_Pause){ // 程序暂停
 			m_curLinePauseTime++;
 			m_TotalPauseTime++;
@@ -421,7 +472,8 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 			m_curLineTime++;
 			at = m_dryLines[m_curLineNo][1]/60.0;
 		}
-		m_edtRunTime.Format("%2d:%02d",m_TotalTime/60,m_TotalTime%60);
+		h_m = div((int)(m_TotalTimes/6),60);
+		m_edtRunTime.Format("%2d:%02d",h_m.quot,h_m.rem);
 		m_edtAreaTime.Format("%2d:%02d",m_curLineTime/60,m_curLineTime%60);
 		m_edtRunPauseTime.Format("%2d:%02d",m_TotalPauseTime/60,m_TotalPauseTime%60);
 		m_edtAreaPauseTime.Format("%2d:%02d",m_curLinePauseTime/60,m_curLinePauseTime%60);
@@ -430,33 +482,14 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 			t += at;
 			if((short int)t<m_dryLines[m_curLineNo][0]){// 未升到段指定温度
 				if((short int)t > (short int)m_lbSettingtemperature){
-					downSend(cmdSettingTemperature,t);// 传送当前设定温度给下位机
+					downSend(cmdSetSettingTemperature,(WORD)(t*16));// 传送当前设定温度给下位机
 				}
 				m_lbSettingtemperature = t;
 			}else{ // 升温结束
-				m_curLineNo++;
-				if(m_curLineNo<m_dryLines.size()){ // 干燥未结束
-					m_curLineTime = 0;
-					m_curLinePauseTime = 0;
-					downSend(cmdSettingTemperature,m_dryLines[m_curLineNo][0]);// 传送当前设定温度给下位机
-					m_lbSettingtemperature = m_dryLines[m_curLineNo][0];
-
-					m_edtArea.Format("%d℃ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[1]);
-				}else{
-					endDry();
-				}
+				goNextLine();
 			}
 		}else if(m_curLineTime>m_dryLines[m_curLineNo][2]*60){ // 保温时间到
-			m_curLineNo++;
-			m_curLineTime = 0;
-			m_curLinePauseTime = 0;
-			if(m_curLineNo<m_dryLines.size()){ // 干燥未结束
-				downSend(cmdSettingTemperature,m_dryLines[m_curLineNo][0]);// 传送当前设定温度给下位机
-
-				m_edtArea.Format("%d℃ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
-			}else{
-				endDry();
-			}
+			goNextLine();
 		}
 		UpdateData(FALSE);     //读入编辑框的数据
 		break;
@@ -513,7 +546,7 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 		SetTimer(0,10000,NULL);
 		m_SerialPort.StartMonitoring();  //启动串口通信检测线程函数
 		downSend(cmdGetTemperature,0); // 取下位机当前实际温度
-		downSend(cmdSettingLineNo,0xff);  // 取下位机当前段号
+		downSend(cmdGetAll,0);  // 取下位机当前段号
 	}
 	else
 	{
@@ -790,7 +823,7 @@ void ChostDlg::loadXLM(void)
 void ChostDlg::endDry(void)
 {
 	KillTimer(1);
-	downSend(cmdSettingLineNo,0);// 设置下位机当前段号为 0
+	downSend(cmdSetLineNo,0);// 设置下位机当前段号为 0
 	downSend(cmdRunningStatus,4);// 设置下位机当前运行状态为 4(结束)
 }
 
@@ -820,7 +853,7 @@ void ChostDlg::saveXML(void)
 		spNodeList->get_item(i, &spNode);
 		linesNode->removeChild(spNode,NULL);
 	}
-	for (long i = 0; i < m_dryLines.size(); ++i) //遍历子节点 
+	for (UINT i = 0; i < m_dryLines.size(); ++i) //遍历子节点 
 	{ 
 		CComPtr<IXMLDOMElement> lineEle,temperatureEle,rateEle,timeEle; 
 		CString s[3];
@@ -884,4 +917,116 @@ void ChostDlg::saveXML(void)
 		SysFreeString(a2); // 用完释放
 	}
 	spDoc->save(CComVariant(OLESTR("dryHost.xml")));
+}
+
+
+void ChostDlg::OnBnClickedButtonStart()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_curLineNo = 0;
+	m_curLineTime = 0;
+	//m_TotalTime = 0;
+	m_TotalTimes = 0;
+	m_curLinePauseTime = 0;
+	m_TotalPauseTime = 0;
+	m_dataInvalid = 0;
+	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
+	//downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
+	SetTimer(1,60000,NULL);
+}
+
+
+void ChostDlg::goNextLine(void)
+{
+	m_curLineNo++;
+	if(m_curLineNo<m_dryLines.size()){ // 干燥未结束
+		int state;
+		if(m_dryLines[m_curLineNo][1]>0) state = 0;
+		else if(m_dryLines[m_curLineNo][1]==0) state = 1;
+		else if(m_dryLines[m_curLineNo][1]<0) state = 2;
+
+		m_curLineTime = 0;
+		m_curLinePauseTime = 0;
+		if(m_curLineNo==0){
+			downSend(cmdSetSettingTemperature,(WORD)(m_lbTemperature*16));// 传送当前设定温度给下位机
+			m_lbSettingtemperature = m_lbTemperature;
+		}else{
+			downSend(cmdSetSettingTemperature,(WORD)(m_dryLines[m_curLineNo-1][0]*16));// 传送当前设定温度给下位机
+			m_lbSettingtemperature = m_dryLines[m_curLineNo][0];
+		}
+
+		m_edtArea.Format("%d℃ %s",m_dryLines[m_curLineNo][0],dryRunningStatus[state]);
+	}else{
+		endDry();
+	}
+}
+
+
+void ChostDlg::adjuster(double temperature)
+{
+	m_Pause = FALSE;
+	if(temperature < m_lbSettingtemperature-m_allowOperatingValue[2]){
+		// 温度低
+		if(m_allowOperating[2])
+			Beep (1000,1000);
+		m_edtRunning = "温度低";
+		m_runbrush = &m_yellowbrush;
+		if(temperature < m_lbSettingtemperature-m_allowOperatingValue[3]){
+			m_edtRunning = "温度低，暂停";
+			m_runbrush = &m_redbrush;
+			if(m_allowOperating[3])
+				Beep (2000,500);
+			if(m_allowOperating[0]) // 是否允许低温暂停
+				m_Pause = TRUE;
+		}
+	}else if(temperature > m_lbSettingtemperature+m_allowOperatingValue[2]){
+		// 温度高
+		m_edtRunning = "温度高";
+		if(m_allowOperating[2])
+			Beep (1000,500);
+		m_runbrush = &m_yellowbrush;
+		if(temperature > m_lbSettingtemperature+m_allowOperatingValue[3]){
+			if(m_allowOperating[3])
+				Beep (2000,1000);
+			m_edtRunning = "温度高!!!";
+			m_runbrush = &m_redbrush;
+		}
+	}else{ // 温度正常
+		m_edtRunning = "正常";
+		m_runbrush = &m_greenbrush;
+	}
+}
+
+
+void ChostDlg::savePoint(double temperature)
+{
+	CPoint pt(m_TotalTimes,temperature+50);
+	CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
+	m_dcMem.DPtoLP(&pt);
+	m_dcMem.DPtoLP(&pt1);
+	m_ptrArray[0].Add(new CGraph(0,pt));
+	m_ptrArray[1].Add(new CGraph(0,pt1));
+
+	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+	int nCurpos=pScrollBar->GetScrollPos();
+	int nSize = m_ptrArray[0].GetSize();
+	if(nSize>nCurpos+1){
+		for(int j=0;j<2;j++){
+			m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
+			CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nSize-2);
+			m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
+			g = (CGraph *)m_ptrArray[j].GetAt(nSize-1);
+			m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
+		}
+	}
+	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
+}
+
+
+UINT ChostDlg::timeToSecond(CString time)
+{
+	int pos = time.Find(':');
+	int hour = atoi(time.Left(pos));
+	int minute = atoi(time.Mid(pos+1));
+	return (hour*60+minute)%60;
 }

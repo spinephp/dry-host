@@ -5,13 +5,22 @@
 
 #include "SerialPort.h"
 #include "afxwin.h"
+#include <functional>  
+#include <memory>  
 #include   <vector>   
 using   namespace   std;   
 	
 const char cmdGetTemperature = '\x00';
-const char cmdSettingTemperature = '\x10';
-const char cmdSettingLineNo = '\x20';
+const char cmdGetSettingTemperature = '\x10';
+const char cmdSetSettingTemperature = '\x11';
+const char cmdGetLineNo = '\x20';
+const char cmdSetLineNo = '\x21';
 const char cmdRunningStatus = '\x30';
+const char cmdGetLineTime = '\x40';
+const char cmdSetLineTime = '\x41';
+const char cmdGetTime = '\x50';
+const char cmdSetTime = '\x51';
+const char cmdGetAll = '\xf0';
 
 const CString dryRunningStatus[]={"升温","保温","降温","暂停","结束"};
 
@@ -49,19 +58,21 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 private:
-	BYTE v_portin[5];
+	BYTE v_portin[13];
 	short int v_lastTemperature;
 	int v_index;
 	int m_smoothvalue; // 允许温度突变最大值
 
 	int m_curLineNo; // 当前干燥曲线段号
-	int m_curLineTime; // 当前段号运行时间(分)
-	int m_TotalTime; // 干燥曲线运行总时间(分)
-	long int m_TotalTimes; // 干燥曲线运行总时间(分)
-	int m_curLinePauseTime; // 当前段号运行时间(分)
-	int m_TotalPauseTime; // 干燥曲线运行总时间(分)
+	UINT m_curLineTime; // 当前段号运行时间(分)
+	long int m_TotalTimes; // 干燥曲线运行总时间(10秒)
+	UINT m_curLinePauseTime; // 当前段号运行时间(分)
+	UINT m_TotalPauseTime; // 干燥曲线运行总时间(分)
 	int m_dataInvalid; // 无效的传输数据数量
 	BOOL m_Pause; // 程序暂停
+
+	typedef std::tr1::function<void (float)> FNsettingTemperature;  
+	vector<FNsettingTemperature> m_fnSettingTemperature;
 
 	CDC m_dcMem,m_dcMemTime,m_dcMemHG; //缓冲DC和背景DC
 	CPtrArray m_ptrArray[2];
@@ -119,4 +130,13 @@ public:
 	void downSend(char cmd, WORD degress);
 private:
 	void saveXML(void);
+public:
+	afx_msg void OnBnClickedButtonStart();
+private:
+	void goNextLine(void);
+public:
+	void adjuster(double temperature);
+private:
+	void savePoint(double temperature);
+	UINT timeToSecond(CString time);
 };
