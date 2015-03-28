@@ -207,7 +207,7 @@ BOOL CSerialPort::InitPort(HWND pPortOwner,	// the owner (CWnd) of the port (rec
 	sprintf(szBaud, "baud=%d parity=%c data=%d stop=%d", baud, parity, databits, mystop);
 
 	// get a handle to the port
-	m_hComm = CreateFile(szPort,						// communication port string (COMX)
+	m_hComm = CreateFile((LPCWSTR)szPort,						// communication port string (COMX)
 						 GENERIC_READ | GENERIC_WRITE,	// read/write types
 						 0,								// comm devices must be opened with exclusive access
 						 NULL,							// no security attributes
@@ -495,7 +495,7 @@ void CSerialPort::ProcessErrorMessage(char* ErrorText)
 	);
 
 	sprintf(Temp, "WARNING:  %s Failed with the following error: \n%s\nPort: %d\n", (char*)ErrorText, lpMsgBuf, m_nPortNr); 
-	MessageBox(NULL, Temp, "Application Error", MB_ICONSTOP);
+	MessageBox(NULL, (LPCWSTR)Temp, _T("Application Error"), MB_ICONSTOP);
 
 	LocalFree(lpMsgBuf);
 	delete[] Temp;
@@ -780,8 +780,8 @@ void CSerialPort::WriteToPort(LPCTSTR string)
 {
 	assert(m_hComm != 0);
 	memset(m_szWriteBuffer, 0, sizeof(m_szWriteBuffer));
-	strcpy(m_szWriteBuffer, string);
-	m_nWriteSize=strlen(string);
+	strcpy(m_szWriteBuffer, (const char *)string);
+	m_nWriteSize = strlen((const char *)string);
 	// set event for write
 	SetEvent(m_hWriteEvent);
 }
@@ -806,7 +806,7 @@ void CSerialPort::SendData(LPCTSTR lpszData, const int nLength)
 {
 	assert(m_hComm != 0);
 	memset(m_szWriteBuffer, 0, nLength);
-	strcpy(m_szWriteBuffer, lpszData);
+	strcpy(m_szWriteBuffer, (const char *)lpszData);
 	m_nWriteSize=nLength;
 	// set event for write
 	SetEvent(m_hWriteEvent);

@@ -10,6 +10,7 @@
 #include   <vector>   
 using   namespace   std;   
 	
+// 定义向下位机发送的命令
 const char cmdGetTemperature = '\x00';
 const char cmdGetSettingTemperature = '\x10';
 const char cmdSetSettingTemperature = '\x11';
@@ -22,10 +23,17 @@ const char cmdGetTime = '\x50';
 const char cmdSetTime = '\x51';
 const char cmdGetAll = '\xf0';
 
-const CString dryRunningStatus[]={"升温","保温","降温","暂停","结束"};
+const CString dryRunningStatus[] = { _T("升温"), _T("保温"), _T("降温"), _T("暂停"), _T("结束") };
 
-//const int m_dryLine[8][3]={50,5,0,50,0,16,85,5,0,85,0,16,95,5,0,95,0,16,120,3,0,120,0,16};
+struct dryHead{
+	char mark[3];
+	char date[8];
+	char time[6];
+};
 
+struct dryRecord{
+	WORD record[4];
+};
 // ChostDlg 对话框
 class ChostDlg : public CDialogEx
 {
@@ -75,7 +83,10 @@ private:
 	vector<FNsettingTemperature> m_fnSettingTemperature;
 
 	CDC m_dcMem,m_dcMemTime,m_dcMemHG; //缓冲DC和背景DC
+
 	CPtrArray m_ptrArray[2];
+	CFile m_file;
+
 	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // 拆线绘图区域
 	int m_tLeft, m_tTop, m_tWidth, m_tHeight; // 时间刻度区域
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);

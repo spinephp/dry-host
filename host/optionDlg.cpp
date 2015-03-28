@@ -137,10 +137,11 @@ void optionDlg::OnBnClickedSave()
 	GetDlgItem(IDC_LIST_LINE)->EnableWindow(TRUE);
 	if(m_LineEditMode>=0){
 		m_lstLine.DeleteString(m_LineEditMode);
-		n = m_lstLine.InsertString(m_LineEditMode,record);
+		n = m_lstLine.InsertString(m_LineEditMode,(LPCTSTR)record);
 	}else
-		n = m_lstLine.AddString(record);
-	m_lstLine.SelectString(n,record);
+		n = m_lstLine.AddString((LPCTSTR)record);
+	n = m_lstLine.AddString((LPCTSTR)record);
+	m_lstLine.SelectString(n, (LPCTSTR)record);
 	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_HEATINGRATE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_TIMELENGTH)->EnableWindow(FALSE);
@@ -181,9 +182,9 @@ void optionDlg::OnBnClickedEdit()
 	m_LineEditMode = m_lstLine.GetCurSel();
 	m_lstLine.GetText(m_LineEditMode,s);
 	strToArray(s,v);
-	m_edLineTemperature.Format("%d",v[0]);
-	m_edLineHeatingRate.Format("%d",v[1]);
-	m_edLineTimeLength.Format("%d",v[2]);
+	m_edLineTemperature.Format(_T("%d"),v[0]);
+	m_edLineHeatingRate.Format(_T("%d"), v[1]);
+	m_edLineTimeLength.Format(_T("%d"), v[2]);
 
 	UpdateData(FALSE); 
 	GetDlgItem(ID_SAVE)->EnableWindow(FALSE);
@@ -245,14 +246,14 @@ void optionDlg::OnBnClickedDown()
 
 int optionDlg::loadXML(void)
 {
-	char *fmt = "%%%dd%%%dd%%%dd";
+	wchar_t *fmt = L"%%%dd%%%dd%%%dd";
 	int nLen = m_dryLines.size();
 	for (int i = 0; i < nLen; ++i) //遍历子节点 
 	{ 
-		char fmt1[20]={0};
-		char record[60]={0};
-		sprintf(fmt1,fmt,13-digits(m_dryLines[i][0]) ,21-digits(m_dryLines[i][1]) ,19-digits(m_dryLines[i][2]));
-		sprintf(record,fmt1,m_dryLines[i][0],m_dryLines[i][1],m_dryLines[i][2]);
+		wchar_t fmt1[20]={0};
+		wchar_t record[60]={0};
+		swprintf(fmt1,20,fmt,13-digits(m_dryLines[i][0]) ,21-digits(m_dryLines[i][1]) ,19-digits(m_dryLines[i][2]));
+		swprintf(record, 60,fmt1, m_dryLines[i][0], m_dryLines[i][1], m_dryLines[i][2]);
 		m_lstLine.AddString(record);
 	} 
 	return 0;
