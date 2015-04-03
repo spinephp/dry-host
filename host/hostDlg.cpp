@@ -1020,30 +1020,39 @@ void ChostDlg::savePoint(double temperature)
 	CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
 	m_dcMem.DPtoLP(&pt);
 	m_dcMem.DPtoLP(&pt1);
-	m_ptrArray[0].Add(new CGraph(0,pt));
-	m_ptrArray[1].Add(new CGraph(0,pt1));
+	//m_ptrArray[0].Add(new CGraph(0,pt));
+	//m_ptrArray[1].Add(new CGraph(0,pt1));
 
-	WORD record[4];
+	WORD record[4],record1[4];
 	int size = sizeof(WORD)* 4;
-	record[0] = temperature + 50;
-	record[0] = m_lbSettingtemperature + 50;
-	record[0] = m_TotalTimes;
-	record[0] = 0;
-	m_file.SeekToEnd();
+	ULONGLONG filesize;
+	record[0] = pt.y;
+	record[1] = pt1.y;
+	record[2] = pt.x;
+	record[3] = 0;
+	filesize = m_file.SeekToEnd();
 	m_file.Write(record, size);
 	m_file.Flush();
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 	int nCurpos=pScrollBar->GetScrollPos();
-	int nSize = m_ptrArray[0].GetSize();
+	int nSize = (filesize - sizeof(dryHead))/size+1;// m_ptrArray[0].GetSize();
 	if(nSize>nCurpos+1){
-		for(int j=0;j<2;j++){
-			m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
-			CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nSize-2);
-			m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
-			g = (CGraph *)m_ptrArray[j].GetAt(nSize-1);
-			m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
-		}
+		m_file.Seek(-8 * size, CFile::end);
+		m_file.Read(record1, 4 * size);
+		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
+		m_dcMem.MoveTo(record1[2], record1[0]);
+		m_dcMem.LineTo(record1[2], record1[1]);
+		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
+		m_dcMem.MoveTo(record[2], record[0]);
+		m_dcMem.LineTo(record[2], record[1]);
+		//for (int j = 0; j<2; j++){
+		//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
+		//	CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nSize-2);
+		//	m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
+		//	g = (CGraph *)m_ptrArray[j].GetAt(nSize-1);
+		//	m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
+		//}
 	}
 	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 }
