@@ -132,8 +132,8 @@ void optionDlg::OnBnClickedSave()
 	char *fmt = "%%%ds%%%ds%%%ds";
 	char fmt1[13];
 	char record[60];
-	sprintf(fmt1,fmt,13-m_edLineTemperature.GetLength() ,21-m_edLineHeatingRate.GetLength() ,19-m_edLineTimeLength.GetLength());
-	sprintf(record,fmt1,m_edLineTemperature,m_edLineHeatingRate,m_edLineTimeLength);
+	sprintf_s(fmt1,fmt,13-m_edLineTemperature.GetLength() ,21-m_edLineHeatingRate.GetLength() ,19-m_edLineTimeLength.GetLength());
+	sprintf_s(record,fmt1,m_edLineTemperature,m_edLineHeatingRate,m_edLineTimeLength);
 	GetDlgItem(IDC_LIST_LINE)->EnableWindow(TRUE);
 	if(m_LineEditMode>=0){
 		m_lstLine.DeleteString(m_LineEditMode);

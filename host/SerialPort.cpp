@@ -21,7 +21,7 @@
 #include "SerialPort.h"
 
 #include <assert.h>
- 
+#pragma warning(disable:4996) 
 //
 // Constructor
 //
@@ -153,7 +153,7 @@ BOOL CSerialPort::InitPort(HWND pPortOwner,	// the owner (CWnd) of the port (rec
 	m_dwCommEvents = dwCommEvents;
 
 	BOOL bResult = FALSE;
-	char *szPort = new char[50];
+	wchar_t *szPort = new wchar_t[50];
 	char *szBaud = new char[50];
 
 	// now it critical!
@@ -167,7 +167,7 @@ BOOL CSerialPort::InitPort(HWND pPortOwner,	// the owner (CWnd) of the port (rec
 	}
 
 	// prepare port strings
-	sprintf(szPort, "COM%d", portnr);
+	swprintf(szPort,50, L"COM%d", portnr);
 
 	// stop is index 0 = 1 1=1.5 2=2
 	int mystop;
@@ -207,7 +207,7 @@ BOOL CSerialPort::InitPort(HWND pPortOwner,	// the owner (CWnd) of the port (rec
 	sprintf(szBaud, "baud=%d parity=%c data=%d stop=%d", baud, parity, databits, mystop);
 
 	// get a handle to the port
-	m_hComm = CreateFile((LPCWSTR)szPort,						// communication port string (COMX)
+	m_hComm = CreateFile(szPort,						// communication port string (COMX)
 						 GENERIC_READ | GENERIC_WRITE,	// read/write types
 						 0,								// comm devices must be opened with exclusive access
 						 NULL,							// no security attributes

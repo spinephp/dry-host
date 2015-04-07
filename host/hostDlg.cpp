@@ -324,12 +324,12 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
 				temperature = *(short int*)(v_portin+2);
-				if(v_lastTemperature==-100)
+				str.Format(_T("%5.1f"), temperature*0.0625);
+				m_lbTemperature = _ttof(str);// swscanf(str, _T("%5.1f"), &m_lbTemperature);
+				if (v_lastTemperature == -100)
 					v_lastTemperature = temperature;
 				if(m_allowOperating[1] && temperature > v_lastTemperature-m_smoothvalue && temperature < v_lastTemperature+m_smoothvalue || !m_allowOperating[1] && temperature > -800 && temperature < 3200){ // ，为正常，否则认为是由其它因素造成的误差
 					v_lastTemperature = temperature;
-					str.Format(_T("%5.1f"),temperature*0.0625); 
-					swscanf(str, _T("%5.1f"), &m_lbTemperature);
 					//m_lbTemperature = strtod(str, NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
 					if(m_curLineNo>-1){// 干燥已开始
 						if(((int)m_lbSettingtemperature)==-100){
@@ -339,13 +339,13 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						adjuster(temperature*0.0625);
 						savePoint(temperature*0.0625);
 					}else{
-						m_edtRunning = "未开始";
+						m_edtRunning = L"未开始";
 						m_runbrush = NULL;
 					}
-					UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				}else{
 					m_dataInvalid++;
 				}
+				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
 			case cmdGetSettingTemperature: // 下位机当前的设定温度
 				temperature = *(short int*)(v_portin+2);
@@ -539,11 +539,11 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 	UINT nPort=m_cbPort.GetCurSel()+1;   //得到串口号
 	m_cbBaudrate.GetLBText(m_cbBaudrate.GetCurSel(),str);   //得到波特率
 	UINT nBuad;
-	swscanf(str, _T("%d"), &nBuad);
+	nBuad = _ttoi(str);// swscanf(str, _T("%d"), &nBuad);
 	UINT iParity = m_cbVerifybit.GetCurSel();
 	m_cbDatabit.GetLBText(m_cbDatabit.GetCurSel(),str1);   //得到数据位
 	UINT nDatabit;
-	swscanf(str1, _T("%d"), &nDatabit);
+	nDatabit = _ttoi(str1);// swscanf(str1, _T("%d"), &nDatabit);
 	UINT nStopbit = m_cbStopbit.GetCurSel();
 	if(m_SerialPort.InitPort(m_hWnd,nPort,nBuad,"NOE"[iParity],nDatabit,nStopbit,EV_RXFLAG | EV_RXCHAR,512))
 	{
@@ -678,23 +678,40 @@ void ChostDlg::SetHStaff(void)
 // 绘制温度曲线
 void ChostDlg::DrawTemperatureLine(void)
 {
-	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-	int nCurpos=pScrollBar->GetScrollPos();
-	int nSizes=m_ptrArray[0].GetSize();
-	m_dcMem.FillSolidRect(0,0, m_nWidth, m_nHeight,RGB(255,255,255));
-	if(nSizes && nSizes > nCurpos){
-		//m_dcMem.BitBlt(0, 0, m_nWidth, m_nHeight, &m_dcBack, 0, 0, SRCCOPY);// 绘制背景
-		for(int j=0;j<2;j++){
-			m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
-			CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nCurpos);
-			m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
-			for(int i=nCurpos+1;i<m_ptrArray[j].GetSize() && i<nCurpos+m_nWidth;i++){
-				g = (CGraph *)m_ptrArray[j].GetAt(i);
-				m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
+	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
+	if (m_file.m_hFile != CFile::hFileNull){
+		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+		int nCurpos = pScrollBar->GetScrollPos();
+		int size = sizeof(WORD)* 4;
+		ULONGLONG filesize = m_file.GetLength();
+		ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size + 1; //m_ptrArray[0].GetSize();
+		if (nSizes && nSizes > nCurpos){
+			WORD record[4], m_record[4];
+			m_file.Seek(nCurpos * size + sizeof(dryHead), CFile::begin);
+			m_file.Read(record, size);
+			for (ULONGLONG i = 0; i < m_nWidth && i < nSizes; i++){
+				m_file.Seek(size, CFile::current);
+				m_file.Read(m_record, size);
+				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
+				m_dcMem.MoveTo(record[2], record[0]);
+				m_dcMem.LineTo(m_record[2], m_record[0]);
+				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
+				m_dcMem.MoveTo(record[2], record[1]);
+				m_dcMem.LineTo(m_record[2], m_record[1]);
+				memcpy(record, m_record, size);
 			}
+			//for (int j = 0; j<2; j++){
+			//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
+			//	CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nCurpos);
+			//	m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
+			//	for(int i=nCurpos+1;i<m_ptrArray[j].GetSize() && i<nCurpos+m_nWidth;i++){
+			//		g = (CGraph *)m_ptrArray[j].GetAt(i);
+			//		m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
+			//	}
+			//}
 		}
+		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
 	}
-	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 }
 
 
@@ -786,11 +803,11 @@ void ChostDlg::loadXLM(void)
 		CString s0(temperature),s1(rate),s2(time);
 		vector <int> line; 
 		UINT iS;
-		swscanf(s0, _T("%d"), &iS);  
+		iS = _ttoi(s0);// swscanf(s0, _T("%d"), &iS);
 		line.push_back(iS);
-		swscanf(s1, _T("%d"), &iS);
+		iS = _ttoi(s1);// swscanf(s0, _T("%d"), &iS);
 		line.push_back(iS);
-		swscanf(s2, _T("%d"), &iS);
+		iS = _ttoi(s2);// swscanf(s0, _T("%d"), &iS);
 		line.push_back(iS);
 		m_dryLines.push_back(line);
 	
@@ -801,11 +818,11 @@ void ChostDlg::loadXLM(void)
 	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"),&spNode);
 	spNode->get_text(&tem);
 	str = tem;
-	swscanf(str, _T("%d"), &m_upTemperatureTime);
+	m_upTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_upTemperatureTime);
 	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"),&spNode1);
 	spNode1->get_text(&tem);
 	str = tem;
-	swscanf(str, _T("%d"), &m_downSetTemperatureTime);
+	m_downSetTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_downSetTemperatureTime);
 	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"),&spNode2);
 	spNode2->get_text(&tem);
 	m_allowHandPause = (CString)tem=="TRUE";
@@ -824,7 +841,7 @@ void ChostDlg::loadXLM(void)
 		spNameNodeMap->get_item(1, &spNodeAttrib1); 
 		spNodeAttrib1->get_text(&a2);
 		str = a2;
-		swscanf(str, _T("%d"), &m_allowOperatingValue[i]);
+		m_allowOperatingValue[i] = _ttoi(str);// swscanf(str, _T("%d"), &m_allowOperatingValue[i]);
 	}
 }
 
@@ -936,6 +953,11 @@ void ChostDlg::OnBnClickedButtonStart()
 	CTime tm = CTime::GetCurrentTime();
 	CString filename = tm.Format(L"dry%Y%m%d.dat");
 	CString filehead = tm.Format(L"dry%Y%m%d%H%M%S");
+	if (m_file.m_hFile != CFile::hFileNull)
+		m_file.Close();
+	CFileStatus status;
+	if (CFile::GetStatus(filename, status)) 
+		CFile::Remove(filename);
 	m_curLineNo = 0;
 	m_curLineTime = 0;
 	//m_TotalTime = 0;
@@ -945,7 +967,7 @@ void ChostDlg::OnBnClickedButtonStart()
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
 	//downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
-	m_file.Open(filename, CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+	m_file.Open(filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
 	m_file.Write(filehead, filehead.GetLength());
 	m_file.Flush();
 	SetTimer(1,60000,NULL);
@@ -1023,14 +1045,14 @@ void ChostDlg::savePoint(double temperature)
 	//m_ptrArray[0].Add(new CGraph(0,pt));
 	//m_ptrArray[1].Add(new CGraph(0,pt1));
 
-	WORD record[4],record1[4];
+	WORD record[4];
 	int size = sizeof(WORD)* 4;
-	ULONGLONG filesize;
+	ULONGLONG filesize = m_file.GetLength();
 	record[0] = pt.y;
 	record[1] = pt1.y;
 	record[2] = pt.x;
 	record[3] = 0;
-	filesize = m_file.SeekToEnd();
+	m_file.SeekToEnd();
 	m_file.Write(record, size);
 	m_file.Flush();
 
@@ -1038,13 +1060,11 @@ void ChostDlg::savePoint(double temperature)
 	int nCurpos=pScrollBar->GetScrollPos();
 	int nSize = (filesize - sizeof(dryHead))/size+1;// m_ptrArray[0].GetSize();
 	if(nSize>nCurpos+1){
-		m_file.Seek(-8 * size, CFile::end);
-		m_file.Read(record1, 4 * size);
 		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
-		m_dcMem.MoveTo(record1[2], record1[0]);
-		m_dcMem.LineTo(record1[2], record1[1]);
+		m_dcMem.MoveTo(m_record[2], m_record[0]);
+		m_dcMem.LineTo(record[2], record[0]);
 		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
-		m_dcMem.MoveTo(record[2], record[0]);
+		m_dcMem.MoveTo(m_record[2], m_record[1]);
 		m_dcMem.LineTo(record[2], record[1]);
 		//for (int j = 0; j<2; j++){
 		//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
@@ -1054,6 +1074,7 @@ void ChostDlg::savePoint(double temperature)
 		//	m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
 		//}
 	}
+	memcpy(m_record, record, size);
 	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 }
 
@@ -1063,7 +1084,7 @@ UINT ChostDlg::timeToSecond(CString time)
 	int pos = time.Find(':');
 	int hour;
 	int minute;
-	swscanf(time.Left(pos), _T("%d"), &hour);
-	swscanf(time.Mid(pos + 1), _T("%d"), &minute);
+	hour = _ttoi(time.Left(pos));// swscanf(time.Left(pos), _T("%d"), &hour);
+	minute = _ttoi(time.Mid(pos + 1));// swscanf(time.Mid(pos + 1), _T("%d"), &minute);
 	return (hour * 60 + minute) % 60;
 }

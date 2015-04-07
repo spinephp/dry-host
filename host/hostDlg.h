@@ -84,7 +84,8 @@ private:
 
 	CDC m_dcMem,m_dcMemTime,m_dcMemHG; //»º³åDCºÍ±³¾°DC
 
-	CPtrArray m_ptrArray[2];
+	//CPtrArray m_ptrArray[2];
+	WORD m_record[4];
 	CFile m_file;
 
 	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // ²ðÏß»æÍ¼ÇøÓò
