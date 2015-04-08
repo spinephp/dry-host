@@ -680,25 +680,28 @@ void ChostDlg::DrawTemperatureLine(void)
 {
 	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
 	if (m_file.m_hFile != CFile::hFileNull){
+		m_file.Close();
+		m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeRead);
+
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		int nCurpos = pScrollBar->GetScrollPos();
 		int size = sizeof(WORD)* 4;
 		ULONGLONG filesize = m_file.GetLength();
 		ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size + 1; //m_ptrArray[0].GetSize();
 		if (nSizes && nSizes > nCurpos){
-			WORD record[4], m_record[4];
+			WORD record[4];
 			m_file.Seek(nCurpos * size + sizeof(dryHead), CFile::begin);
-			m_file.Read(record, size);
+			m_file.Read(m_record, size);
 			for (ULONGLONG i = 0; i < m_nWidth && i < nSizes; i++){
 				m_file.Seek(size, CFile::current);
-				m_file.Read(m_record, size);
+				m_file.Read(record, size);
 				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
-				m_dcMem.MoveTo(record[2], record[0]);
-				m_dcMem.LineTo(m_record[2], m_record[0]);
+				m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
+				m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
-				m_dcMem.MoveTo(record[2], record[1]);
-				m_dcMem.LineTo(m_record[2], m_record[1]);
-				memcpy(record, m_record, size);
+				m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
+				m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+				memcpy(m_record, record, size);
 			}
 			//for (int j = 0; j<2; j++){
 			//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
@@ -711,6 +714,8 @@ void ChostDlg::DrawTemperatureLine(void)
 			//}
 		}
 		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		m_file.Close();
+		m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
 	}
 }
 
@@ -951,13 +956,17 @@ void ChostDlg::OnBnClickedButtonStart()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	CTime tm = CTime::GetCurrentTime();
-	CString filename = tm.Format(L"dry%Y%m%d.dat");
+	m_filename = tm.Format(L"dry%Y%m%d.dat");
 	CString filehead = tm.Format(L"dry%Y%m%d%H%M%S");
 	if (m_file.m_hFile != CFile::hFileNull)
 		m_file.Close();
 	CFileStatus status;
-	if (CFile::GetStatus(filename, status)) 
-		CFile::Remove(filename);
+	CString t_filename = m_filename;
+	int index = 0;
+	while (CFile::GetStatus(t_filename, status)){
+		t_filename.Format(L"%s%d", m_filename, index++);
+	}
+	CFile::Rename(m_filename,t_filename);
 	m_curLineNo = 0;
 	m_curLineTime = 0;
 	//m_TotalTime = 0;
@@ -967,7 +976,7 @@ void ChostDlg::OnBnClickedButtonStart()
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
 	//downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
-	m_file.Open(filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+	m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
 	m_file.Write(filehead, filehead.GetLength());
 	m_file.Flush();
 	SetTimer(1,60000,NULL);
@@ -1061,11 +1070,11 @@ void ChostDlg::savePoint(double temperature)
 	int nSize = (filesize - sizeof(dryHead))/size+1;// m_ptrArray[0].GetSize();
 	if(nSize>nCurpos+1){
 		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
-		m_dcMem.MoveTo(m_record[2], m_record[0]);
-		m_dcMem.LineTo(record[2], record[0]);
+		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
+		m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
-		m_dcMem.MoveTo(m_record[2], m_record[1]);
-		m_dcMem.LineTo(record[2], record[1]);
+		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
+		m_dcMem.LineTo(record[2] - nCurpos, record[1]);
 		//for (int j = 0; j<2; j++){
 		//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
 		//	CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nSize-2);
