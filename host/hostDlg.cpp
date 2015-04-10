@@ -954,7 +954,7 @@ void ChostDlg::OnBnClickedButtonStart()
 	while (CFile::GetStatus(t_filename, status)){
 		t_filename.Format(L"%s%d", m_filename, index++);
 	}
-	CFile::Rename(m_filename,t_filename);
+	if(index) CFile::Rename(m_filename,t_filename);
 	m_curLineNo = 0;
 	m_curLineTime = 0;
 	//m_TotalTime = 0;
