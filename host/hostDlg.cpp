@@ -18,18 +18,6 @@
 #define new DEBUG_NEW
 #endif
 
-class CGraph 
-{
-public:
-	CPoint m_pt; // 起点
-	UINT m_nDrawType; // 绘画类型
-	CGraph();
-	CGraph(UINT m_nDrawType,CPoint m_pt){
-		this->m_nDrawType = m_nDrawType;
-		this->m_pt = m_pt;
-	}; // 此为构造函数。
-};
-
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
 class CAboutDlg : public CDialogEx
