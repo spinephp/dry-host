@@ -113,6 +113,7 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_WM_HSCROLL()
 	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
 	ON_BN_CLICKED(IDC_BUTTON_START, &ChostDlg::OnBnClickedButtonStart)
+	ON_NOTIFY(NM_THEMECHANGED, IDC_SCROLLBAR_HFIGURE, &ChostDlg::OnNMThemeChangedScrollbarHfigure)
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -159,8 +160,7 @@ BOOL ChostDlg::OnInitDialog()
 	m_cbPort.SetCurSel(0); //初始选择串口1
 	m_bPortOpen = FALSE;
 
-
-	GetDlgItem(IDC_BUTTON_OPENPORT)->EnableWindow(!m_bPortOpen);
+	setCommCtrlEnable(!size);
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
 	v_index = 0;
@@ -413,6 +413,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 							break;
 						}
 						UpdateData();
+						GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
 					}
 					else if (nResponse == IDCANCEL)
 					{
@@ -546,8 +547,7 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 		MessageBox(_T("没有发现此串口或者被占用"));
 	}
 	m_bPortOpen = m_SerialPort.IsOpen();
-	GetDlgItem(IDC_BUTTON_OPENPORT)->EnableWindow(!m_bPortOpen);
-	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
+	setCommCtrlEnable(m_SerialPort.IsOpen());
 }
 
 
@@ -556,8 +556,7 @@ void ChostDlg::OnBnClickedButtonCloseport()  //关闭串口按钮消息响应函
 	// TODO: 在此添加控件通知处理程序代码
 	m_SerialPort.ClosePort();
 	m_bPortOpen = m_SerialPort.IsOpen();
-	GetDlgItem(IDC_BUTTON_OPENPORT)->EnableWindow(!m_bPortOpen);
-	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
+	setCommCtrlEnable(m_SerialPort.IsOpen());
 }
 
 
@@ -668,8 +667,8 @@ void ChostDlg::DrawTemperatureLine(void)
 {
 	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
 	if (m_file.m_hFile != CFile::hFileNull){
-		m_file.Close();
-		m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeRead);
+		//m_file.Close();
+		//m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeRead);
 
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		int nCurpos = pScrollBar->GetScrollPos();
@@ -693,8 +692,8 @@ void ChostDlg::DrawTemperatureLine(void)
 			}
 		}
 		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
-		m_file.Close();
-		m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+		//m_file.Close();
+		//m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
 	}
 }
 
@@ -755,6 +754,10 @@ BOOL ChostDlg::DestroyWindow()
 	// TODO: 在此添加专用代码和/或调用基类
 	spDoc.Release();
 	CoUninitialize();
+
+	// 关闭记录文件
+	if (m_file.m_hFile != CFile::hFileNull)
+		m_file.Close();
 
 	return CDialogEx::DestroyWindow();
 }
@@ -953,7 +956,7 @@ void ChostDlg::OnBnClickedButtonStart()
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
 	//downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
-	m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+	m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
 	m_file.Write(filehead, filehead.GetLength());
 	m_file.Flush();
 	SetTimer(1,60000,NULL);
@@ -1052,13 +1055,6 @@ void ChostDlg::savePoint(double temperature)
 		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
 		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
 		m_dcMem.LineTo(record[2] - nCurpos, record[1]);
-		//for (int j = 0; j<2; j++){
-		//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
-		//	CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nSize-2);
-		//	m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
-		//	g = (CGraph *)m_ptrArray[j].GetAt(nSize-1);
-		//	m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
-		//}
 	}
 	memcpy(m_record, record, size);
 	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
@@ -1073,4 +1069,28 @@ UINT ChostDlg::timeToSecond(CString time)
 	hour = _ttoi(time.Left(pos));// swscanf(time.Left(pos), _T("%d"), &hour);
 	minute = _ttoi(time.Mid(pos + 1));// swscanf(time.Mid(pos + 1), _T("%d"), &minute);
 	return (hour * 60 + minute) % 60;
+}
+
+
+void ChostDlg::OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	// 该功能要求使用 Windows XP 或更高版本。
+	// 符号 _WIN32_WINNT 必须 >= 0x0501。
+	// TODO:  在此添加控件通知处理程序代码
+	*pResult = 0;
+}
+
+
+void ChostDlg::setCommCtrlEnable(bool enabled)
+{
+	CWnd   *pWnd;
+	int index = 1;
+	pWnd = GetWindow(GW_CHILD);
+	while (pWnd != NULL && index <15)
+	{
+		if (index++ > 2)
+			pWnd->EnableWindow(!enabled);
+		pWnd = pWnd->GetNextWindow();
+	}
+	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(enabled);
 }

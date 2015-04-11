@@ -152,4 +152,8 @@ public:
 private:
 	void savePoint(double temperature);
 	UINT timeToSecond(CString time);
+public:
+	afx_msg void OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult);
+private:
+	void setCommCtrlEnable(bool enabled);
 };
