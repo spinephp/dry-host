@@ -137,11 +137,11 @@ void optionDlg::OnBnClickedSave()
 	GetDlgItem(IDC_LIST_LINE)->EnableWindow(TRUE);
 	if(m_LineEditMode>=0){
 		m_lstLine.DeleteString(m_LineEditMode);
-		n = m_lstLine.InsertString(m_LineEditMode,(LPCTSTR)record);
+		n = m_lstLine.InsertString(m_LineEditMode,record);
 	}else
-		n = m_lstLine.AddString((LPCTSTR)record);
-	n = m_lstLine.AddString((LPCTSTR)record);
-	m_lstLine.SelectString(n, (LPCTSTR)record);
+		n = m_lstLine.AddString(record);
+	//n = m_lstLine.AddString((LPCTSTR)record);
+	m_lstLine.SelectString(n, record);
 	GetDlgItem(IDC_EDIT_ENDTEMPERATURE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_HEATINGRATE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_TIMELENGTH)->EnableWindow(FALSE);

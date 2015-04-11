@@ -691,15 +691,6 @@ void ChostDlg::DrawTemperatureLine(void)
 				m_dcMem.LineTo(record[2] - nCurpos, record[1]);
 				memcpy(m_record, record, size);
 			}
-			//for (int j = 0; j<2; j++){
-			//	m_dcMem.SelectObject(CreatePen(PS_SOLID,1,j? m_bluecolor:m_redcolor));
-			//	CGraph *g = (CGraph *)m_ptrArray[j].GetAt(nCurpos);
-			//	m_dcMem.MoveTo(g->m_pt.x-nCurpos,g->m_pt.y);
-			//	for(int i=nCurpos+1;i<m_ptrArray[j].GetSize() && i<nCurpos+m_nWidth;i++){
-			//		g = (CGraph *)m_ptrArray[j].GetAt(i);
-			//		m_dcMem.LineTo(g->m_pt.x-nCurpos,g->m_pt.y);
-			//	}
-			//}
 		}
 		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
 		m_file.Close();
@@ -762,6 +753,7 @@ void ChostDlg::OnBnClickedButtonOption()
 BOOL ChostDlg::DestroyWindow()
 {
 	// TODO: 在此添加专用代码和/或调用基类
+	spDoc.Release();
 	CoUninitialize();
 
 	return CDialogEx::DestroyWindow();
@@ -773,68 +765,65 @@ void ChostDlg::loadXLM(void)
 	//读取XML 
 	spDoc.CoCreateInstance(CLSID_DOMDocument); 
 	VARIANT_BOOL vb; 
-	spDoc->load(CComVariant(OLESTR("dryHost.xml")), &vb); //加载XML文件 
-	spDoc->get_documentElement(&spRootEle); //根节点 
-	CComPtr<IXMLDOMNodeList> spNodeList,spNodeList1; 
+	HRESULT hr = spDoc->load(CComVariant(OLESTR("dryHost.xml")), &vb); //加载XML文件 
+	if (vb == VARIANT_TRUE){
+		spDoc->get_documentElement(&spRootEle); //根节点 
+		CComPtr<IXMLDOMNodeList> spNodeList, spNodeList1;
 
-	// 取干燥曲线参数
-	spDoc->selectNodes(OLESTR("/root/lines/*"), &spNodeList); //得到node2下的所有子节点 
-	long nLen; 
-	spNodeList->get_length(&nLen); //子节点数 
-	for (long i = 0; i < nLen; ++i) //遍历子节点 
-	{ 
-		CComPtr<IXMLDOMNode> spNode,chNode,chNode1,chNode2; 
-		spNodeList->get_item(i, &spNode); 
-		BSTR temperature,rate,time;
-		spNode->get_firstChild(&chNode);
-		chNode->get_text(&temperature); //节点值 
-		chNode->get_nextSibling(&chNode1);
-		chNode1->get_text(&rate); //节点值 
-		chNode1->get_nextSibling(&chNode2);
-		chNode2->get_text(&time); //节点值 
+		// 取干燥曲线参数
+		spDoc->selectNodes(OLESTR("/root/lines/*"), &spNodeList); //得到node2下的所有子节点 
+		long nLen;
+		spNodeList->get_length(&nLen); //子节点数 
+		for (long i = 0; i < nLen; ++i) //遍历子节点 
+		{
+			CComPtr<IXMLDOMNode> spNode, chNode, chNode1, chNode2;
+			spNodeList->get_item(i, &spNode);
+			BSTR temperature, rate, time;
+			spNode->get_firstChild(&chNode);
+			chNode->get_text(&temperature); //节点值 
+			chNode->get_nextSibling(&chNode1);
+			chNode1->get_text(&rate); //节点值 
+			chNode1->get_nextSibling(&chNode2);
+			chNode2->get_text(&time); //节点值 
 
-		CString s0(temperature),s1(rate),s2(time);
-		vector <int> line; 
-		UINT iS;
-		iS = _ttoi(s0);// swscanf(s0, _T("%d"), &iS);
-		line.push_back(iS);
-		iS = _ttoi(s1);// swscanf(s0, _T("%d"), &iS);
-		line.push_back(iS);
-		iS = _ttoi(s2);// swscanf(s0, _T("%d"), &iS);
-		line.push_back(iS);
-		m_dryLines.push_back(line);
-	
-	} 
-	CComPtr<IXMLDOMNode> spNode,spNode1,spNode2;
-	BSTR tem;
-	CString str;
-	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"),&spNode);
-	spNode->get_text(&tem);
-	str = tem;
-	m_upTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_upTemperatureTime);
-	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"),&spNode1);
-	spNode1->get_text(&tem);
-	str = tem;
-	m_downSetTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_downSetTemperatureTime);
-	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"),&spNode2);
-	spNode2->get_text(&tem);
-	m_allowHandPause = (CString)tem=="TRUE";
+			CString s[3] = { temperature, rate, time };
+			vector <int> line;
+			for (int i = 0; i < 3; i++)
+				line.push_back(_ttoi(s[i]));
+			m_dryLines.push_back(line);
 
-	spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //得到node2下的所有子节点 
+		}
+		CComPtr<IXMLDOMNode> spNode, spNode1, spNode2;
+		BSTR tem;
+		CString str;
+		spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"), &spNode);
+		spNode->get_text(&tem);
+		str = tem;
+		m_upTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_upTemperatureTime);
+		spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"), &spNode1);
+		spNode1->get_text(&tem);
+		str = tem;
+		m_downSetTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_downSetTemperatureTime);
+		spDoc->selectSingleNode(OLESTR("/root/allowhandpause"), &spNode2);
+		spNode2->get_text(&tem);
+		m_allowHandPause = (CString)tem == "TRUE";
 
-	for(int i=0;i<4;i++){
-		CComPtr<IXMLDOMNode> cpNode,spNodeAttrib0,spNodeAttrib1;
-		CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap; 
-		BSTR a1,a2;
-		spNodeList1->get_item(i+4, &cpNode); 
-		cpNode->get_attributes(&spNameNodeMap);
-		spNameNodeMap->get_item(0, &spNodeAttrib0); 
-		spNodeAttrib0->get_text(&a1);
-		m_allowOperating[i] = (CString)a1 == "TRUE";
-		spNameNodeMap->get_item(1, &spNodeAttrib1); 
-		spNodeAttrib1->get_text(&a2);
-		str = a2;
-		m_allowOperatingValue[i] = _ttoi(str);// swscanf(str, _T("%d"), &m_allowOperatingValue[i]);
+		spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //得到node2下的所有子节点 
+
+		for (int i = 0; i < 4; i++){
+			CComPtr<IXMLDOMNode> cpNode, spNodeAttrib0, spNodeAttrib1;
+			CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap;
+			BSTR a1, a2;
+			spNodeList1->get_item(i + 4, &cpNode);
+			cpNode->get_attributes(&spNameNodeMap);
+			spNameNodeMap->get_item(0, &spNodeAttrib0);
+			spNodeAttrib0->get_text(&a1);
+			m_allowOperating[i] = (CString)a1 == "TRUE";
+			spNameNodeMap->get_item(1, &spNodeAttrib1);
+			spNodeAttrib1->get_text(&a2);
+			str = a2;
+			m_allowOperatingValue[i] = _ttoi(str);// swscanf(str, _T("%d"), &m_allowOperatingValue[i]);
+		}
 	}
 }
 
