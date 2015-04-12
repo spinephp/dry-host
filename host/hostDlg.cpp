@@ -160,7 +160,7 @@ BOOL ChostDlg::OnInitDialog()
 	m_cbPort.SetCurSel(0); //初始选择串口1
 	m_bPortOpen = FALSE;
 
-	setCommCtrlEnable(!size);
+	setCommCtrlEnable(size!=0,3,14);
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
 	v_index = 0;
@@ -414,6 +414,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						}
 						UpdateData();
 						GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+						setCommCtrlEnable(TRUE, 18, 38);
 					}
 					else if (nResponse == IDCANCEL)
 					{
@@ -547,16 +548,22 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 		MessageBox(_T("没有发现此串口或者被占用"));
 	}
 	m_bPortOpen = m_SerialPort.IsOpen();
-	setCommCtrlEnable(m_SerialPort.IsOpen());
+	setCommCtrlEnable(!m_SerialPort.IsOpen(),3,14);
 }
 
 
 void ChostDlg::OnBnClickedButtonCloseport()  //关闭串口按钮消息响应函数
 {
 	// TODO: 在此添加控件通知处理程序代码
+	if (m_curLineNo > -1){
+		if (MessageBox(L"干燥正在进行！确实要强行退出吗？", L"警告", MB_ICONEXCLAMATION | MB_OKCANCEL) == IDCANCEL){
+			return;
+		}
+	}
 	m_SerialPort.ClosePort();
 	m_bPortOpen = m_SerialPort.IsOpen();
-	setCommCtrlEnable(m_SerialPort.IsOpen());
+	setCommCtrlEnable(!m_SerialPort.IsOpen(),3,14);
+	setCommCtrlEnable(FALSE, 18, 38);
 }
 
 
@@ -835,8 +842,10 @@ void ChostDlg::endDry(void)
 {
 	KillTimer(1);
 	downSend(cmdSetLineNo,0);// 设置下位机当前段号为 0
-	downSend(cmdRunningStatus,4);// 设置下位机当前运行状态为 4(结束)
+	m_curLineNo = -1;
+	downSend(cmdRunningStatus, 4);// 设置下位机当前运行状态为 4(结束)
 	m_file.Close();
+	setCommCtrlEnable(FALSE, 18, 38);
 }
 
 // 向下位机发送指令或传送数据
@@ -960,6 +969,7 @@ void ChostDlg::OnBnClickedButtonStart()
 	m_file.Write(filehead, filehead.GetLength());
 	m_file.Flush();
 	SetTimer(1,60000,NULL);
+	setCommCtrlEnable(TRUE, 18, 38);
 }
 
 
@@ -1081,15 +1091,17 @@ void ChostDlg::OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult)
 }
 
 
-void ChostDlg::setCommCtrlEnable(bool enabled)
+void ChostDlg::setCommCtrlEnable(bool enabled,int minIndex,int maxIndex)
 {
 	CWnd   *pWnd;
 	int index = 1;
 	pWnd = GetWindow(GW_CHILD);
-	while (pWnd != NULL && index <15)
+	while (pWnd != NULL)
 	{
-		if (index++ > 2)
-			pWnd->EnableWindow(!enabled);
+		if (index >= minIndex && index <= maxIndex){
+			pWnd->EnableWindow(enabled);
+		}
+		index++;
 		pWnd = pWnd->GetNextWindow();
 	}
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(enabled);

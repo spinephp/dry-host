@@ -155,5 +155,5 @@ private:
 public:
 	afx_msg void OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult);
 private:
-	void setCommCtrlEnable(bool enabled);
+	void setCommCtrlEnable(bool enabled, int minIndex, int maxIndex);
 };
