@@ -185,6 +185,8 @@ BOOL ChostDlg::OnInitDialog()
 	m_nWidth = rect.Width()-50;
 	m_nHeight = rect.Height()-140;
 
+	m_redrawingTemperatureLine = FALSE;
+
     m_dcMem.CreateCompatibleDC(&dc);
 	//m_dcBack.CreateCompatibleDC(GetDC());
 	CBitmap tmp,tmpp;
@@ -665,8 +667,11 @@ void ChostDlg::SetHStaff(void)
 			m_dcMemTime.TextOut(i - size.cx / 2, 0, s, wcslen(s));
 		}
 	}
-	GetDC()->BitBlt(m_nLeft, m_nTop+m_nHeight, m_nWidth, m_nHeight+6, &m_dcMemHG, 0,0, SRCCOPY);
-	GetDC()->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0,0, SRCCOPY);
+	CDC *hdc = GetDC();
+	if (hdc){
+		hdc->BitBlt(m_nLeft, m_nTop + m_nHeight, m_nWidth, m_nHeight + 6, &m_dcMemHG, 0, 0, SRCCOPY);
+		hdc->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0, 0, SRCCOPY);
+	}
 }
 
 // 绘制温度曲线
@@ -674,8 +679,7 @@ void ChostDlg::DrawTemperatureLine(void)
 {
 	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
 	if (m_file.m_hFile != CFile::hFileNull){
-		//m_file.Close();
-		//m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeRead);
+		m_redrawingTemperatureLine = TRUE;
 
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		int nCurpos = pScrollBar->GetScrollPos();
@@ -698,9 +702,10 @@ void ChostDlg::DrawTemperatureLine(void)
 				memcpy(m_record, record, size);
 			}
 		}
-		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
-		//m_file.Close();
-		//m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite);
+		CDC *hdc = GetDC();
+		if (hdc)
+			hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		m_redrawingTemperatureLine = FALSE;
 	}
 }
 
@@ -1051,23 +1056,34 @@ void ChostDlg::savePoint(double temperature)
 	record[1] = pt1.y;
 	record[2] = pt.x;
 	record[3] = 0;
-	m_file.SeekToEnd();
-	m_file.Write(record, size);
-	m_file.Flush();
+	for (int i = 0; i < 4; i++)
+		m_restoreTemperaturePoint.push_back(record[i]);
+	if (m_redrawingTemperatureLine==FALSE){
+		m_file.SeekToEnd();
 
-	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-	int nCurpos=pScrollBar->GetScrollPos();
-	int nSize = (filesize - sizeof(dryHead))/size+1;// m_ptrArray[0].GetSize();
-	if(nSize>nCurpos+1){
-		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
-		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
-		m_dcMem.LineTo(record[2] - nCurpos, record[0]);
-		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
-		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
-		m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+		int nCurpos = pScrollBar->GetScrollPos();
+		int nSize = (filesize - sizeof(dryHead)) / size + 1;// m_ptrArray[0].GetSize();
+		for (int i = 0; i < m_restoreTemperaturePoint.size(); i += 4){
+			record[i] = m_restoreTemperaturePoint[i];
+			record[i + 1] = m_restoreTemperaturePoint[i + 1];
+			record[i + 2] = m_restoreTemperaturePoint[i + 2];
+			record[i + 3] = m_restoreTemperaturePoint[i + 3];
+			m_file.Write(record, size);
+			if (nSize+i/4 > nCurpos + 1){
+				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
+				m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
+				m_dcMem.LineTo(record[2] - nCurpos, record[0]);
+				m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
+				m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
+				m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+			}
+			memcpy(m_record, record, size);
+		}
+		GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		m_file.Flush();
+		m_restoreTemperaturePoint.clear();
 	}
-	memcpy(m_record, record, size);
-	GetDC()->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0,0, SRCCOPY);
 }
 
 

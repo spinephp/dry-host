@@ -86,9 +86,10 @@ private:
 
 	//CPtrArray m_ptrArray[2];
 	WORD m_record[4];
+	vector<WORD> m_restoreTemperaturePoint;
 	CFile m_file;
 	CString m_filename;
-
+	bool m_redrawingTemperatureLine;
 	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // 拆线绘图区域
 	int m_tLeft, m_tTop, m_tWidth, m_tHeight; // 时间刻度区域
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
