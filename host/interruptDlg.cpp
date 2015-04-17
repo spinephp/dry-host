@@ -19,6 +19,7 @@ interruptDlg::interruptDlg(CWnd* pParent /*=NULL*/)
 	, m_edSetingTemperature(0)
 	, m_rdAutoRun(0)
 	, m_edAllTime(_T(""))
+	, m_edBreakFile(_T(""))
 {
 
 }
@@ -37,11 +38,13 @@ void interruptDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Radio(pDX, IDC_RADIO_AUTORUN, m_rdAutoRun);
 	DDX_Control(pDX, IDC_COMBO_LINENAME, m_cbLines);
 	DDX_Text(pDX, IDC_EDIT_ALLTIME, m_edAllTime);
+	DDX_Text(pDX, IDC_EDIT_BREAKFILE, m_edBreakFile);
 }
 
 
 BEGIN_MESSAGE_MAP(interruptDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &interruptDlg::OnBnClickedOk)
+	ON_BN_CLICKED(IDC_BUTTON_OPENFILE, &interruptDlg::OnBnClickedButtonOpenfile)
 END_MESSAGE_MAP()
 
 
@@ -75,4 +78,16 @@ void interruptDlg::OnBnClickedOk()
 	// TODO: 在此添加控件通知处理程序代码
 	m_curSelLine = m_cbLines.GetCurSel();
 	CDialogEx::OnOK();
+}
+
+void interruptDlg::OnBnClickedButtonOpenfile()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	CFileDialog opendialog(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_READONLY,
+		TEXT("干燥数据记录文件(*.dat)|*.dat|所有文件(*.*)|*.*||"), NULL);
+	if (opendialog.DoModal() == IDOK)
+	{
+		m_edBreakFile = opendialog.GetPathName();
+		UpdateData(FALSE);
+	}
 }

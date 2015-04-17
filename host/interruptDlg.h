@@ -34,4 +34,6 @@ public:
 	virtual BOOL OnInitDialog();
 	CString m_edAllTime;
 	afx_msg void OnBnClickedOk();
+	afx_msg void OnBnClickedButtonOpenfile();
+	CString m_edBreakFile;
 };

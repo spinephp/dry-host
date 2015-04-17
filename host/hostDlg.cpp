@@ -624,29 +624,37 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	int TempPos = pScrollBar->GetScrollPos();
+	UINT TempPos = pScrollBar->GetScrollPos();
+	UINT tPos = TempPos;
 	switch(nSBCode)
 	{
-		case SB_THUMBPOSITION://拖动滑块
-			pScrollBar->SetScrollPos(nPos);
-			break;
-		case SB_LINELEFT://点击左边的箭头
+	case SB_LEFT://拖动滑块
+		TempPos = 0;
+		break;
+	case SB_RIGHT://拖动滑块
+		TempPos = 34560;
+		break;
+	case SB_THUMBPOSITION://拖动滑块
+		TempPos = nPos;
+		break;
+	case SB_LINELEFT://点击左边的箭头
 			if(TempPos > 0)
 			{
 				TempPos--;
 			}
-			pScrollBar->SetScrollPos(TempPos);
 		break;
 		case SB_LINERIGHT://点击右边的箭头
 			if(TempPos<34560)
 			{
 				TempPos++;
 			}
-			pScrollBar->SetScrollPos(TempPos);
 		break;
 	} 
-	DrawTemperatureLine();
-	SetHStaff();
+	if (tPos != TempPos){
+		pScrollBar->SetScrollPos(TempPos);
+		DrawTemperatureLine();
+		SetHStaff();
+	}
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
@@ -678,7 +686,8 @@ void ChostDlg::SetHStaff(void)
 void ChostDlg::DrawTemperatureLine(void)
 {
 	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
-	if (m_file.m_hFile != CFile::hFileNull){
+	CDC *hdc = GetDC();
+	if (m_file.m_hFile != CFile::hFileNull && hdc){
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		int nCurpos = pScrollBar->GetScrollPos();
 		int size = sizeof(WORD)* 4;
@@ -688,21 +697,25 @@ void ChostDlg::DrawTemperatureLine(void)
 			WORD record[4];
 			ULONGLONG lPos;
 			TRY{
+				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
+				HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
 				lPos = m_file.Seek(nCurpos * size + sizeof(dryHead), CFile::begin);
 				m_file.Read(m_record, size);
 				for (ULONGLONG i = 1; i < m_nWidth && i < nSizes - 1; i++){
 					lPos = m_file.Seek(size, CFile::current);
 					if (lPos < filesize){
 						m_file.Read(record, size);
-						m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
+						m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[0]);
-						m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
+						m_dcMem.SelectObject(hPen2);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[1]);
 						memcpy(m_record, record, size);
 					}
 				} 
+				DeleteObject(hPen1);
+				DeleteObject(hPen2);
 			}
 			CATCH(CFileException,e){
 				#ifdef _DEBUG
@@ -710,9 +723,7 @@ void ChostDlg::DrawTemperatureLine(void)
 				#endif
 			}END_CATCH
 		}
-		CDC *hdc = GetDC();
-		if (hdc)
-			hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
 	}
 }
 
@@ -1063,30 +1074,35 @@ void ChostDlg::savePoint(double temperature)
 
 	WORD record[4];
 	int size = sizeof(WORD)* 4;
-	ULONGLONG filesize = m_file.GetLength();
 	record[0] = pt.y;
 	record[1] = pt1.y;
 	record[2] = pt.x;
 	record[3] = 0;
 	m_file.SeekToEnd();
+	m_file.Write(record, size);
+	m_file.Flush();
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-	int nCurpos = pScrollBar->GetScrollPos();
-	int nSize = (filesize - sizeof(dryHead)) / size + 1;// m_ptrArray[0].GetSize();
-	m_file.Write(record, size);
-	if (nSize > nCurpos + 1){
-		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_redcolor));
-		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
-		m_dcMem.LineTo(record[2] - nCurpos, record[0]);
-		m_dcMem.SelectObject(CreatePen(PS_SOLID, 1, m_bluecolor));
-		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
-		m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+	if (pScrollBar){
+		ULONGLONG filesize = m_file.GetLength();
+		int nCurpos = pScrollBar->GetScrollPos();
+		int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
+		if (nSize > nCurpos+1){
+			HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
+			HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
+			m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
+			m_dcMem.LineTo(record[2] - nCurpos, record[0]);
+			m_dcMem.SelectObject(hPen2);
+			m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
+			m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+			DeleteObject(hPen1);
+			DeleteObject(hPen2);
+		}
+		CDC *hdc = GetDC();
+		if (hdc)
+			hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
 	}
 	memcpy(m_record, record, size);
-	CDC *hdc = GetDC();
-	if (hdc)
-		hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
-	m_file.Flush();
 	m_restoreTemperaturePoint.clear();
 }
 
