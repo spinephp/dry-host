@@ -17,7 +17,7 @@ interruptDlg::interruptDlg(CWnd* pParent /*=NULL*/)
 	, m_edLineTime(_T(""))
 	, m_edTemperature(0)
 	, m_edSetingTemperature(0)
-	, m_rdAutoRun(0)
+	, m_rdAutoRun(4)
 	, m_edAllTime(_T(""))
 	, m_edBreakFile(_T(""))
 {
@@ -47,6 +47,12 @@ BEGIN_MESSAGE_MAP(interruptDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &interruptDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON_OPENFILE, &interruptDlg::OnBnClickedButtonOpenfile)
 	ON_WM_PAINT()
+	ON_BN_CLICKED(IDC_RADIO_AUTORUN, &interruptDlg::OnBnClickedRadio5)
+	ON_BN_CLICKED(IDC_RADIO2, &interruptDlg::OnBnClickedRadio5)
+	ON_BN_CLICKED(IDC_RADIO3, &interruptDlg::OnBnClickedRadio5)
+	ON_BN_CLICKED(IDC_RADIO4, &interruptDlg::OnBnClickedRadio5)
+	ON_BN_CLICKED(IDC_RADIO5, &interruptDlg::OnBnClickedRadio5)
+	ON_CBN_SELCHANGE(IDC_COMBO_LINENAME, &interruptDlg::OnBnClickedRadio5)
 END_MESSAGE_MAP()
 
 
@@ -84,7 +90,7 @@ BOOL interruptDlg::OnInitDialog()
 
 	dryline = new dryLine(&dc, rect);
 	dryline->draw(&dc, m_dryLines, 20);
-
+	dryline->setStartPoint(&dc, 0);
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
 }
@@ -123,4 +129,48 @@ void interruptDlg::OnPaint()
 	// TODO:  在此处添加消息处理程序代码
 	dryline->paint(&dc);
 	// 不为绘图消息调用 CDialogEx::OnPaint()
+}
+
+void interruptDlg::OnBnClickedRadio5()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+	int time;
+	int lineNo = m_cbLines.GetCurSel();
+	switch (m_rdAutoRun){
+	case 0:
+		break;
+	case 1:
+		time = lineNoToTime(lineNo, 20);
+		break;
+	case 2:
+		time = lineNoToTime(lineNo, 20);
+		time += _ttoi(m_edLineTime);
+		break;
+	case 3:
+		time = lineNoToTime(lineNo, 20);
+		break;
+	case 4:
+		time = 0;
+		break;
+	}
+	CDC *hdc = GetDC();
+	dryline->setStartPoint(hdc, time);
+	ReleaseDC(hdc);
+}
+
+
+int interruptDlg::lineNoToTime(int lineNo,int roomTemperature=20)
+{
+	int times = 0;
+	int preTemperature = roomTemperature;
+	for (int i = 0; i < lineNo && i<m_dryLines.size(); i++){
+		int time = m_dryLines[i][2];
+		if (time == 0){
+			time = (m_dryLines[i][0] - preTemperature) / m_dryLines[i][1];
+		}
+		times += time;
+		preTemperature = m_dryLines[i][0];
+	}
+	return times;
 }

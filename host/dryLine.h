@@ -11,6 +11,7 @@ struct dryHead{
 class dryLine
 {
 	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // ²ðÏß»æÍ¼ÇøÓò
+	int m_time;
 	WORD m_record[4];
 	WORD* toLP(WORD * record, double sx , double sy, int dx, int dy);
 protected:
@@ -19,6 +20,8 @@ protected:
 public:
 	dryLine(CPaintDC *mdc, CRect rect);
 	~dryLine();
+
+	void setStartPoint(CDC *hdc,int time);
 
 	void draw(CDC *hdc, CFile file, int nCurpos);
 	void draw(CDC *hdc, CFile file, WORD *record, int nCurpos);

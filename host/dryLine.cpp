@@ -25,6 +25,8 @@ dryLine::dryLine(CPaintDC *mdc, CRect rect)
 	m_bluecolor = RGB(0, 0, 255);                     // 蓝色  
 	m_greencolor = RGB(0, 255, 0);                     // 绿色  
 	m_textcolor = RGB(255, 255, 255);                 // 文本颜色设置为白色  
+
+	m_time = -1;
 }
 
 
@@ -104,7 +106,7 @@ void dryLine::draw(CDC *hdc, vector< vector<int> > dryLines, WORD roomTemperatur
 	UINT time;
 	WORD preTemperature = roomTemperature;
 	HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
-	CPoint pt0(0, roomTemperature + 0);
+	CPoint pt0(10, roomTemperature + 0);
 	m_dcMem.DPtoLP(&pt0);
 	m_dcMem.SelectObject(hPen2);
 	m_dcMem.MoveTo(pt0);
@@ -114,14 +116,14 @@ void dryLine::draw(CDC *hdc, vector< vector<int> > dryLines, WORD roomTemperatur
 			time = (dryLines[i][0] - preTemperature) / dryLines[i][1];
 		}
 		times += time*3;
-		CPoint pt(times, dryLines[i][0] + 0);
+		CPoint pt(times+10, dryLines[i][0] + 0);
 		m_dcMem.DPtoLP(&pt);
 		m_dcMem.LineTo(pt);
 		preTemperature = dryLines[i][0];
 	}
 	time = (preTemperature - roomTemperature) / 10;
 	times += time * 3;
-	CPoint pt(times, roomTemperature + 0);
+	CPoint pt(times+10, roomTemperature + 0);
 	m_dcMem.DPtoLP(&pt);
 	m_dcMem.LineTo(pt);
 	DeleteObject(hPen2);
@@ -141,11 +143,11 @@ void dryLine::draw(CDC &hdc, CFile &file,UINT status)
 				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
 				lPos = file.Seek(sizeof(dryHead), CFile::begin);
 				lPos += file.Read(m_record, size);
-				toLP(m_record,1.0/40,0.0625,0,0);
+				toLP(m_record,1.0/40,0.0625,10,0);
 				for (ULONGLONG i = 1; i < m_nWidth && i < nSizes - 1; i++){
 					if (lPos < filesize){
 						lPos += file.Read(record, size);
-						toLP(record, 1.0/40, 0.0625, 0, 0);
+						toLP(record, 1.0/40, 0.0625, 10, 0);
 						if (record[2] == m_record[2]) continue;
 						m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2], m_record[1]);
@@ -182,4 +184,29 @@ WORD* dryLine::toLP(WORD * record, double sx = 1, double sy = 0.0625, int dx = 0
 	record[1] = pt1.y;
 	record[2] = pt.x;
 	return record;
+}
+
+void dryLine::setStartPoint(CDC *hdc,int time = 0)
+{
+	if (time != m_time){
+		WORD record[4] = { 0, m_nHeight, m_time*3, 0 };
+		HPEN hPen = CreatePen(PS_SOLID, 1, m_greencolor);
+		m_dcMem.SelectObject(hPen);
+		int nOldMode = m_dcMem.SetROP2(R2_NOTXORPEN);
+		if (m_time != -1){
+			toLP(record, 1, 1, 10, 0);
+			m_dcMem.MoveTo(record[2], record[0]);
+			m_dcMem.LineTo(record[2], record[1]);
+		}
+		record[0] = 0;
+		record[1] = m_nHeight;
+		record[2] = time*3;
+		toLP(record, 1, 1, 10, 0);
+		m_dcMem.MoveTo(record[2],record[0]);
+		m_dcMem.LineTo(record[2], record[1]);
+		m_dcMem.SetROP2(nOldMode);
+		DeleteObject(hPen);
+		m_time = time;
+		paint(hdc);
+	}
 }

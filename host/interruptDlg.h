@@ -42,4 +42,7 @@ public:
 	afx_msg void OnBnClickedButtonOpenfile();
 	CString m_edBreakFile;
 	afx_msg void OnPaint();
+	afx_msg void OnBnClickedRadio5();
+private:
+	int lineNoToTime(int lineNo, int roomTemperature);
 };
