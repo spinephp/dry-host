@@ -327,7 +327,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 							m_edtArea.Format(_T("%d℃ %s"),m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
 						}
 						adjuster(temperature*0.0625);
-						savePoint(temperature*0.0625);
+						savePoint(temperature);
 					}else{
 						m_edtRunning = L"未开始";
 						m_runbrush = NULL;
@@ -337,8 +337,12 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				}
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
+			case cmdGetRoomTemperature: // 下位机当前的设定温度
+				temperature = *(short int*)(v_portin + 2);
+				str.Format(_T("%5.1f"), temperature*0.0625);
+				break;
 			case cmdGetSettingTemperature: // 下位机当前的设定温度
-				temperature = *(short int*)(v_portin+2);
+				temperature = *(short int*)(v_portin + 2);
 				temper = temperature*0.0625;
 				for(UINT i=0;i<m_fnSettingTemperature.size();i++){
 					FNsettingTemperature fun = m_fnSettingTemperature[i];
@@ -362,6 +366,8 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						str.Format(_T("%d℃ %s"),m_dryLines[i][0],m_dryLines[i][1]>0? _T("升温"):(m_dryLines[i][1]==0? _T("保温"):_T("降温")));
 						dlg.m_lineNames.push_back(str);
 					}
+					dlg.m_dryLines.assign(m_dryLines.begin(), m_dryLines.end());
+
 					m_curLineNo = *(WORD*)(v_portin+2)-1;
 					dlg.m_curSelLine = m_curLineNo;
 					dlg.m_edLineName.Format(_T("%d℃ %s"),m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
@@ -490,6 +496,7 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		break;
 	}
 	v_index = 0;
+	//downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
 	CDialogEx::OnTimer(nIDEvent);
 }
 
@@ -679,6 +686,7 @@ void ChostDlg::SetHStaff(void)
 	if (hdc){
 		hdc->BitBlt(m_nLeft, m_nTop + m_nHeight, m_nWidth, m_nHeight + 6, &m_dcMemHG, 0, 0, SRCCOPY);
 		hdc->BitBlt(m_tLeft, m_tTop, m_tWidth, m_tHeight, &m_dcMemTime, 0, 0, SRCCOPY);
+		ReleaseDC(hdc);
 	}
 }
 
@@ -693,18 +701,19 @@ void ChostDlg::DrawTemperatureLine(void)
 		int size = sizeof(WORD)* 4;
 		ULONGLONG filesize = m_file.GetLength();
 		ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size; //m_ptrArray[0].GetSize();
-		if (nSizes && nSizes > nCurpos){
+		if (nSizes && nSizes > nCurpos+1){
 			WORD record[4];
 			ULONGLONG lPos;
 			TRY{
-				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
-				HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
+				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_bluecolor);
+				HPEN hPen2 = CreatePen(PS_SOLID, 1, m_redcolor);
 				lPos = m_file.Seek(nCurpos * size + sizeof(dryHead), CFile::begin);
-				m_file.Read(m_record, size);
+				lPos += m_file.Read(m_record, size);
+				toLP(m_record);
 				for (ULONGLONG i = 1; i < m_nWidth && i < nSizes - 1; i++){
-					lPos = m_file.Seek(size, CFile::current);
 					if (lPos < filesize){
-						m_file.Read(record, size);
+						lPos += m_file.Read(record, size);
+						toLP(record);
 						m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[0]);
@@ -724,6 +733,7 @@ void ChostDlg::DrawTemperatureLine(void)
 			}END_CATCH
 		}
 		hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		ReleaseDC(hdc);
 	}
 }
 
@@ -1063,24 +1073,16 @@ void ChostDlg::adjuster(double temperature)
 }
 
 
-void ChostDlg::savePoint(double temperature)
+void ChostDlg::savePoint(WORD temperature)
 {
-	CPoint pt(m_TotalTimes,temperature+50);
-	CPoint pt1(m_TotalTimes,m_lbSettingtemperature+50);
-	m_dcMem.DPtoLP(&pt);
-	m_dcMem.DPtoLP(&pt1);
-	//m_ptrArray[0].Add(new CGraph(0,pt));
-	//m_ptrArray[1].Add(new CGraph(0,pt1));
+	WORD record[4] = { m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
+	int size = sizeof(WORD) * 4;
 
-	WORD record[4];
-	int size = sizeof(WORD)* 4;
-	record[0] = pt.y;
-	record[1] = pt1.y;
-	record[2] = pt.x;
-	record[3] = 0;
 	m_file.SeekToEnd();
 	m_file.Write(record, size);
 	m_file.Flush();
+
+	toLP(record);
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 	if (pScrollBar){
@@ -1088,8 +1090,9 @@ void ChostDlg::savePoint(double temperature)
 		int nCurpos = pScrollBar->GetScrollPos();
 		int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
 		if (nSize > nCurpos+1){
-			HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
-			HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
+			HPEN hPen1 = CreatePen(PS_SOLID, 1, m_bluecolor);
+			HPEN hPen2 = CreatePen(PS_SOLID, 1, m_redcolor);
+			m_dcMem.SelectObject(hPen1);
 			m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 			m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 			m_dcMem.SelectObject(hPen2);
@@ -1101,6 +1104,7 @@ void ChostDlg::savePoint(double temperature)
 		CDC *hdc = GetDC();
 		if (hdc)
 			hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
+		ReleaseDC(hdc);
 	}
 	memcpy(m_record, record, size);
 	m_restoreTemperaturePoint.clear();
@@ -1141,4 +1145,18 @@ void ChostDlg::setCommCtrlEnable(bool enabled,int minIndex,int maxIndex)
 		pWnd = pWnd->GetNextWindow();
 	}
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(enabled);
+}
+
+
+WORD* ChostDlg::toLP(WORD * record)
+{
+	CPoint pt(record[2], record[0]*0.0625 + 50);
+	CPoint pt1(record[2], record[1] * 0.0625 + 50);
+	m_dcMem.DPtoLP(&pt);
+	m_dcMem.DPtoLP(&pt1);
+
+	record[0] = pt.y;
+	record[1] = pt1.y;
+	record[2] = pt.x;
+	return record;
 }

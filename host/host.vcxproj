@@ -105,6 +105,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dry-host\host\resource.h" />
+    <ClInclude Include="dryLine.h" />
     <ClInclude Include="host.h" />
     <ClInclude Include="hostDlg.h" />
     <ClInclude Include="interruptDlg.h" />
@@ -115,6 +116,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\dry-host\host\hostDlg.cpp" />
+    <ClCompile Include="dryLine.cpp" />
     <ClCompile Include="host.cpp" />
     <ClCompile Include="interruptDlg.cpp" />
     <ClCompile Include="optionDlg.cpp" />

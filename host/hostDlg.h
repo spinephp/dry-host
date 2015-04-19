@@ -8,10 +8,12 @@
 #include <functional>  
 #include <memory>  
 #include   <vector>   
-using   namespace   std;   
+#include "dryLine.h"
+using   namespace   std;
 	
 // 定义向下位机发送的命令
 const char cmdGetTemperature = '\x00';
+const char cmdGetRoomTemperature = '\x01';
 const char cmdGetSettingTemperature = '\x10';
 const char cmdSetSettingTemperature = '\x11';
 const char cmdGetLineNo = '\x20';
@@ -24,12 +26,6 @@ const char cmdSetTime = '\x51';
 const char cmdGetAll = '\xf0';
 
 const CString dryRunningStatus[] = { _T("升温"), _T("保温"), _T("降温"), _T("暂停"), _T("结束") };
-
-struct dryHead{
-	char mark[3];
-	char date[8];
-	char time[6];
-};
 
 struct dryRecord{
 	WORD record[4];
@@ -151,10 +147,11 @@ private:
 public:
 	void adjuster(double temperature);
 private:
-	void savePoint(double temperature);
+	void savePoint(WORD temperature);
 	UINT timeToSecond(CString time);
 public:
 	afx_msg void OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult);
 private:
 	void setCommCtrlEnable(bool enabled, int minIndex, int maxIndex);
+	WORD* toLP(WORD * record);
 };

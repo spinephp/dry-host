@@ -1,5 +1,6 @@
 #pragma once
 #include "afxwin.h"
+#include "dryLine.h"
 #include   <vector>   
 using   namespace   std;   
 
@@ -21,7 +22,11 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV Ö§³Ö
 
 	DECLARE_MESSAGE_MAP()
+
 public:
+	vector< vector<int> > m_dryLines;
+	dryLine *dryline;
+	WORD m_roomTemperature;
 	CString m_edLineName;
 	CString m_edLineTime;
 	float m_edTemperature;
@@ -36,4 +41,5 @@ public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedButtonOpenfile();
 	CString m_edBreakFile;
+	afx_msg void OnPaint();
 };

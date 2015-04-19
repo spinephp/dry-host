@@ -26,6 +26,7 @@ interruptDlg::interruptDlg(CWnd* pParent /*=NULL*/)
 
 interruptDlg::~interruptDlg()
 {
+	delete dryline;
 }
 
 void interruptDlg::DoDataExchange(CDataExchange* pDX)
@@ -45,6 +46,7 @@ void interruptDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(interruptDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &interruptDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON_OPENFILE, &interruptDlg::OnBnClickedButtonOpenfile)
+	ON_WM_PAINT()
 END_MESSAGE_MAP()
 
 
@@ -63,11 +65,26 @@ BOOL interruptDlg::OnInitDialog()
 	CDialogEx::OnInitDialog();
 
 	// TODO:  在此添加额外的初始化
-	for(int i=0;i<m_lineNames.size();i++){
+	for(UINT i=0;i<m_lineNames.size();i++){
 		CString str;
 		m_cbLines.AddString(m_lineNames[i]);
 	}
 	m_cbLines.SetCurSel(m_curSelLine);
+
+	m_roomTemperature = 20;
+
+	CRect rect;
+	CPaintDC dc(this);
+	GetDlgItem(IDC_STATIC_PREPROCESS)->GetWindowRect(&rect);//获取控件相对于屏幕的位置
+	ScreenToClient(rect);//转化为对话框上的相对位置
+	rect.left = rect.left + 190;
+	rect.top = rect.top + 12;
+	rect.right = rect.right - 5;
+	rect.bottom = rect.bottom - 5;
+
+	dryline = new dryLine(&dc, rect);
+	dryline->draw(&dc, m_dryLines, 20);
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
 }
@@ -89,5 +106,21 @@ void interruptDlg::OnBnClickedButtonOpenfile()
 	{
 		m_edBreakFile = opendialog.GetPathName();
 		UpdateData(FALSE);
+		CFile file;
+		int openState = file.Open(m_edBreakFile, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
+		if (openState){
+			CDC *hdc = GetDC();
+			dryline->draw(*hdc, file, (UINT)0);
+			ReleaseDC(hdc);
+		}
 	}
+}
+
+
+void interruptDlg::OnPaint()
+{
+	CPaintDC dc(this); // device context for painting
+	// TODO:  在此处添加消息处理程序代码
+	dryline->paint(&dc);
+	// 不为绘图消息调用 CDialogEx::OnPaint()
 }
