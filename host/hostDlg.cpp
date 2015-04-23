@@ -70,6 +70,8 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_edtRunTime(_T("0:0"))
 	, m_edtAreaPauseTime(_T("0:0"))
 	, m_edtRunPauseTime(_T("0:0"))
+	, m_edTemperature430(_T(""))
+	, m_edTemperatureRoom(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -84,7 +86,7 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_CBString(pDX, IDC_COMBO_STOPBIT, m_cbxStopbit);
 	DDX_Text(pDX, IDC_EDIT_TEMPERATURE, m_lbTemperature);
 	DDX_Text(pDX, IDC_EDIT_SETTINGTEMPERATURE, m_lbSettingtemperature);
-	DDX_Text(pDX, IDC_EDIT_RUNNING,m_edtRunning);
+	DDX_Text(pDX, IDC_EDIT_RUNNING, m_edtRunning);
 	DDX_Text(pDX, IDC_EDIT_AREA, m_edtArea);
 	DDX_Control(pDX, IDC_COMBO_PORT, m_cbPort);
 	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_cbBaudrate);
@@ -96,6 +98,8 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_RUNTIME, m_edtRunTime);
 	DDX_Text(pDX, IDC_EDIT_AREAPAUSETIME, m_edtAreaPauseTime);
 	DDX_Text(pDX, IDC_EDIT_RUNPAUSETIME, m_edtRunPauseTime);
+	DDX_Text(pDX, IDC_EDIT_TEMPERATURE430, m_edTemperature430);
+	DDX_Text(pDX, IDC_EDIT_TEMPERATUREROOM, m_edTemperatureRoom);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
@@ -337,9 +341,13 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				}
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
-			case cmdGetRoomTemperature: // 下位机当前的设定温度
+			case cmdGetRoomTemperature: // MSP430片内温度
 				temperature = *(short int*)(v_portin + 2);
-				str.Format(_T("%5.1f"), temperature*0.0625);
+				temper = temperature / 1.45266 - 278.75;
+				str.Format(_T("%5.1f"), temper);
+				m_edTemperature430 = str;
+				m_edTemperatureRoom.Format(L"%5.1f",temper - 9.7);
+				UpdateData(FALSE);
 				break;
 			case cmdGetSettingTemperature: // 下位机当前的设定温度
 				temperature = *(short int*)(v_portin + 2);
@@ -351,16 +359,20 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 				break;
 			case cmdGetLineNo: // 下位机当前段号
 				break;
-			case cmdGetAll: // 下位机当前段号
-				switch(v_portin[2]){
+			case cmdGetAll: // 下位机全部信息
+
+				// 显示实际温度
+				m_lbTemperature = (*(WORD*)(v_portin + 10))*0.0625;
+				UpdateData(FALSE);
+
+				switch (v_portin[2]){
 				case 0xff: // 干燥未进行
+					// 使能“开始干燥”按钮
 					GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
 					break;
 				default:
 					div_t h_m;
 					interruptDlg dlg;
-					//m_fnSettingTemperature.push_back(std::tr1::bind(&interruptDlg::setSettingTemperature,&dlg,std::placeholders::_1));
-					//m_pMainWnd = &dlg;
 					for(int i=0;i<m_dryLines.size();i++){
 						CString str;
 						str.Format(_T("%d℃ %s"),m_dryLines[i][0],m_dryLines[i][1]>0? _T("升温"):(m_dryLines[i][1]==0? _T("保温"):_T("降温")));
@@ -369,70 +381,77 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					dlg.m_dryLines.assign(m_dryLines.begin(), m_dryLines.end());
 
 					m_curLineNo = *(WORD*)(v_portin+2)-1;
-					dlg.m_curSelLine = m_curLineNo;
-					dlg.m_edLineName.Format(_T("%d℃ %s"),m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
-					m_lbSettingtemperature = (*(WORD*)(v_portin+4))*0.0625;
-					dlg.m_edSetingTemperature = m_lbSettingtemperature;
-					h_m = div(*(WORD*)(v_portin+6)/6,60);
-					m_edtRunTime.Format(_T("%2d:%02d"),h_m.quot,h_m.rem);
-					dlg.m_edAllTime = m_edtRunTime;
-					h_m = div(*(WORD*)(v_portin+8),60);
-					m_edtAreaTime.Format(_T("%2d:%02d"),h_m.quot,h_m.rem);
-					dlg.m_edLineTime = m_edtAreaTime;
-					dlg.m_edSetingTemperature = m_lbSettingtemperature;
-					m_lbTemperature = (*(WORD*)(v_portin+10))*0.0625;
-					dlg.m_edTemperature = m_lbTemperature;
-					INT_PTR nResponse = dlg.DoModal();
-					if (nResponse == IDOK)
-					{
-						// TODO: 在此放置处理何时用
-						//  “确定”来关闭对话框的代码
-						m_curLinePauseTime = 0;
-						m_TotalTimes = timeToSecond(dlg.m_edAllTime);
-						m_TotalPauseTime = 0;
-						m_curLineNo = dlg.m_curSelLine;
-						switch(dlg.m_rdAutoRun){
-						case 0:
-							m_curLineTime = 0;
-							m_Pause = false;
-							while(m_lbSettingtemperature<m_lbTemperature){
-								OnTimer(1);
+					if (m_curLineNo >= 0){// 干燥已经开始
+						// 把干燥参数传递给断点对话框
+						dlg.m_curSelLine = m_curLineNo;
+						dlg.m_edLineName.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[0]);
+						m_lbSettingtemperature = (*(WORD*)(v_portin + 4))*0.0625;
+						dlg.m_edSetingTemperature = m_lbSettingtemperature;
+						h_m = div(*(WORD*)(v_portin + 6) / 6, 60);
+						m_edtRunTime.Format(_T("%2d:%02d"), h_m.quot, h_m.rem);
+						dlg.m_edAllTime = m_edtRunTime;
+						h_m = div(*(WORD*)(v_portin + 8), 60);
+						m_edtAreaTime.Format(_T("%2d:%02d"), h_m.quot, h_m.rem);
+						dlg.m_edLineTime = m_edtAreaTime;
+						dlg.m_edSetingTemperature = m_lbSettingtemperature;
+						dlg.m_edTemperature = m_lbTemperature;
+						INT_PTR nResponse = dlg.DoModal();
+						if (nResponse == IDOK)
+						{
+							// TODO: 在此放置处理何时用
+							//  “确定”来关闭对话框的代码
+							// 根据断点对话框参数，设置如何继续干燥
+							m_curLinePauseTime = 0;
+							m_TotalTimes = timeToSecond(dlg.m_edAllTime);
+							m_TotalPauseTime = 0;
+							m_curLineNo = dlg.m_curSelLine;
+							switch (dlg.m_rdAutoRun){
+							case 0:
+								m_curLineTime = 0;
+								m_Pause = false;
+								while (m_lbSettingtemperature < m_lbTemperature){
+									OnTimer(1);
+								}
+								SetTimer(1, 60000, NULL);
+								break;
+							case 1: // in temperature
+								m_curLineTime;
+								m_Pause = false;
+								while (m_lbSettingtemperature < m_lbTemperature){
+									OnTimer(1);
+								}
+								SetTimer(1, 60000, NULL);
+								break;
+							case 2: // in time
+								m_curLineTime = timeToSecond(dlg.m_edLineTime);
+								SetTimer(1, 60000, NULL);
+								break;
+							case 3: // from current line begin
+								goNextLine();
+								SetTimer(1, 60000, NULL);
+								break;
+							case 4: // from head
+								OnBnClickedButtonStart();
+								break;
 							}
-							SetTimer(1,60000,NULL);
-							break;
-						case 1: // in temperature
-							m_curLineTime;
-							m_Pause = false;
-							while(m_lbSettingtemperature<m_lbTemperature){
-								OnTimer(1);
-							}
-							SetTimer(1,60000,NULL);
-							break;
-						case 2: // in time
-							m_curLineTime = timeToSecond(dlg.m_edLineTime);
-							SetTimer(1,60000,NULL);
-							break;
-						case 3: // from current line begin
-							goNextLine();
-							SetTimer(1,60000,NULL);
-							break;
-						case 4: // from head
-							OnBnClickedButtonStart();
-							break;
+							UpdateData();
+							GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+							setCommCtrlEnable(TRUE, 18, 38);
 						}
-						UpdateData();
-						GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
-						setCommCtrlEnable(TRUE, 18, 38);
+						else if (nResponse == IDCANCEL)
+						{
+							// TODO: 在此放置处理何时用
+							//  “取消”来关闭对话框的代码
+						}
+						else if (nResponse == -1)
+						{
+							TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+							TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+						}
 					}
-					else if (nResponse == IDCANCEL)
-					{
-						// TODO: 在此放置处理何时用
-						//  “取消”来关闭对话框的代码
-					}
-					else if (nResponse == -1)
-					{
-						TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
-						TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+					else{
+						// 使能“开始干燥”按钮
+						GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
 					}
 				}
 				break;
@@ -465,7 +484,6 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		m_TotalTimes++;
 		break;
 	case 1:
-		//m_TotalTime++;
 		if(m_Pause){ // 程序暂停
 			m_curLinePauseTime++;
 			m_TotalPauseTime++;
@@ -493,10 +511,11 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 			goNextLine();
 		}
 		UpdateData(FALSE);     //读入编辑框的数据
+		Sleep(100);
+		downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
 		break;
 	}
 	v_index = 0;
-	//downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
 	CDialogEx::OnTimer(nIDEvent);
 }
 
@@ -549,8 +568,7 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 		m_curLineNo = -1;
 		SetTimer(0,10000,NULL);
 		m_SerialPort.StartMonitoring();  //启动串口通信检测线程函数
-		downSend(cmdGetTemperature,0); // 取下位机当前实际温度
-		downSend(cmdGetAll,0);  // 取下位机当前段号
+		downSend(cmdGetAll,0);  // 取下位机干燥参数
 	}
 	else
 	{
@@ -802,7 +820,7 @@ BOOL ChostDlg::DestroyWindow()
 	return CDialogEx::DestroyWindow();
 }
 
-
+// 读取干燥配置文件
 void ChostDlg::loadXLM(void)
 {
 	//读取XML 
@@ -876,6 +894,7 @@ void ChostDlg::endDry(void)
 	KillTimer(1);
 	downSend(cmdSetLineNo,0);// 设置下位机当前段号为 0
 	m_curLineNo = -1;
+	Sleep(100);
 	downSend(cmdRunningStatus, 4);// 设置下位机当前运行状态为 4(结束)
 	m_file.Close();
 	setCommCtrlEnable(FALSE, 18, 38);
@@ -997,13 +1016,15 @@ void ChostDlg::OnBnClickedButtonStart()
 	m_TotalPauseTime = 0;
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
-	//downSend(cmdRunningStatus,0);// 设置下位机当前运行状态为 0(升温)
+	Sleep(100);
+	downSend(cmdSetTime, 0);// 清零下位机总干燥时间
 	int openState = m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
 	if (openState){
 		m_file.Write(filehead, filehead.GetLength());
 		m_file.Flush();
 		SetTimer(1,60000,NULL);
 		setCommCtrlEnable(TRUE, 18, 38);
+		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
 	}
 	else{
 		throw L"不能打开文件 " + m_filename;

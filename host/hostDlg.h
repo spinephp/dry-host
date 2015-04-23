@@ -154,4 +154,7 @@ public:
 private:
 	void setCommCtrlEnable(bool enabled, int minIndex, int maxIndex);
 	WORD* toLP(WORD * record);
+public:
+	CString m_edTemperature430;
+	CString m_edTemperatureRoom;
 };
