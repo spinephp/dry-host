@@ -167,6 +167,8 @@ BOOL ChostDlg::OnInitDialog()
 	setCommCtrlEnable(size!=0,3,14);
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
+	m_startDryMode = 0;// 设置开始模式为 0-随时
+
 	v_index = 0;
 	v_lastTemperature = -100;
 	m_smoothvalue = m_allowOperatingValue[1]*16; // 设置 10 秒内温度变化阀值在 1℃ 之内
@@ -568,7 +570,9 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 		m_curLineNo = -1;
 		SetTimer(0,10000,NULL);
 		m_SerialPort.StartMonitoring();  //启动串口通信检测线程函数
-		downSend(cmdGetAll,0);  // 取下位机干燥参数
+		downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
+		Sleep(100);
+		downSend(cmdGetAll, 0);  // 取下位机干燥参数
 	}
 	else
 	{
@@ -792,6 +796,7 @@ void ChostDlg::OnBnClickedButtonOption()
 		m_allowOperatingValue[3] = dlg.m_cbUltraLimitAlarmingValue;
 		m_upTemperatureTime = dlg.m_edTemperatureUpTime;
 		m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
+		m_startDryMode = dlg.m_rdStartMode;
 		saveXML();
 	}
 	else if (nResponse == IDCANCEL)
@@ -996,38 +1001,10 @@ void ChostDlg::saveXML(void)
 void ChostDlg::OnBnClickedButtonStart()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CTime tm = CTime::GetCurrentTime();
-	m_filename = tm.Format(L"dry%Y%m%d.dat");
-	CString filehead = tm.Format(L"dry%Y%m%d%H%M%S");
-	if (m_file.m_hFile != CFile::hFileNull)
-		m_file.Close();
-	CFileStatus status;
-	CString t_filename = m_filename;
-	int index = 0;
-	while (CFile::GetStatus(t_filename, status)){
-		t_filename.Format(L"%s%d", m_filename, index++);
-	}
-	if(index) CFile::Rename(m_filename,t_filename);
-	m_curLineNo = 0;
-	m_curLineTime = 0;
-	//m_TotalTime = 0;
-	m_TotalTimes = 0;
-	m_curLinePauseTime = 0;
-	m_TotalPauseTime = 0;
-	m_dataInvalid = 0;
-	downSend(cmdSetLineNo,1);// 设置下位机当前段号为 1
-	Sleep(100);
-	downSend(cmdSetTime, 0);// 清零下位机总干燥时间
-	int openState = m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
-	if (openState){
-		m_file.Write(filehead, filehead.GetLength());
-		m_file.Flush();
-		SetTimer(1,60000,NULL);
-		setCommCtrlEnable(TRUE, 18, 38);
-		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
-	}
+	if (!m_startDryMode)
+		dryBegin();
 	else{
-		throw L"不能打开文件 " + m_filename;
+		SetTimer(2, 1000, NULL);
 	}
 }
 
@@ -1180,4 +1157,42 @@ WORD* ChostDlg::toLP(WORD * record)
 	record[1] = pt1.y;
 	record[2] = pt.x;
 	return record;
+}
+
+
+void ChostDlg::dryBegin(void)
+{
+	CTime tm = CTime::GetCurrentTime();
+	m_filename = tm.Format(L"dry%Y%m%d.dat");
+	CString filehead = tm.Format(L"dry%Y%m%d%H%M%S");
+	if (m_file.m_hFile != CFile::hFileNull)
+		m_file.Close();
+	CFileStatus status;
+	CString t_filename = m_filename;
+	int index = 0;
+	while (CFile::GetStatus(t_filename, status)){
+		t_filename.Format(L"%s%d", m_filename, index++);
+	}
+	if (index) CFile::Rename(m_filename, t_filename);
+	m_curLineNo = 0;
+	m_curLineTime = 0;
+	//m_TotalTime = 0;
+	m_TotalTimes = 0;
+	m_curLinePauseTime = 0;
+	m_TotalPauseTime = 0;
+	m_dataInvalid = 0;
+	downSend(cmdSetLineNo, 1);// 设置下位机当前段号为 1
+	Sleep(100);
+	downSend(cmdSetTime, 0);// 清零下位机总干燥时间
+	int openState = m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
+	if (openState){
+		m_file.Write(filehead, filehead.GetLength());
+		m_file.Flush();
+		SetTimer(1, 60000, NULL);
+		setCommCtrlEnable(TRUE, 18, 38);
+		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+	}
+	else{
+		throw L"不能打开文件 " + m_filename;
+	}
 }

@@ -62,4 +62,6 @@ public:
 	afx_msg void OnBnClickedOk();
 private:
 	void strToArray(CString str, vector<int>& intArray);
+public:
+	int m_rdStartMode;
 };

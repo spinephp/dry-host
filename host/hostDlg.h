@@ -25,6 +25,9 @@ const char cmdGetTime = '\x50';
 const char cmdSetTime = '\x51';
 const char cmdGetAll = '\xf0';
 
+const float temp430[] = { 28.3 };
+const float tempRoom[] = { 20.6 };
+
 const CString dryRunningStatus[] = { _T("升温"), _T("保温"), _T("降温"), _T("暂停"), _T("结束") };
 
 struct dryRecord{
@@ -74,6 +77,7 @@ private:
 	UINT m_TotalPauseTime; // 干燥曲线运行总时间(分)
 	int m_dataInvalid; // 无效的传输数据数量
 	BOOL m_Pause; // 程序暂停
+	int m_startDryMode;
 
 	typedef std::tr1::function<void (float)> FNsettingTemperature;  
 	vector<FNsettingTemperature> m_fnSettingTemperature;
@@ -157,4 +161,5 @@ private:
 public:
 	CString m_edTemperature430;
 	CString m_edTemperatureRoom;
+	void dryBegin(void);
 };

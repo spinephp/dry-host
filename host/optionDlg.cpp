@@ -27,6 +27,7 @@ optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	, m_ltLine(_T(""))
 	, m_edTemperatureUpTime(0)
 	, m_edSetTemperatureDownTime(0)
+	, m_rdStartMode(0)
 {
 	m_cbLowPauseValue = 3;
 	m_cbTemperatureFilterValue = 1;
@@ -42,14 +43,14 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_CBString(pDX, IDC_COMBO_LOWPAUSE, m_cbLowPause);
-	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSEVALUE,m_cbLowPauseValue);
-	DDV_MinMaxInt(pDX, m_cbLowPauseValue,1,5);
-	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTERVALUE,m_cbTemperatureFilterValue);
+	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSEVALUE, m_cbLowPauseValue);
+	DDV_MinMaxInt(pDX, m_cbLowPauseValue, 1, 5);
+	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTERVALUE, m_cbTemperatureFilterValue);
 	DDV_MinMaxInt(pDX, m_cbTemperatureFilterValue, 1, 5);
 	DDX_CBString(pDX, IDC_COMBO_TEMPERATUREFILTER, m_cbTemperatureFilter);
 	DDX_CBString(pDX, IDC_COMBO_OVERHERATINGWarning, m_cbOverHeratingWarning);
-	DDX_CBIndex(pDX, IDC_COMBO_OVERHEATINGWARNINGVALUE,m_cbOverHeratingValue);
-	DDV_MinMaxInt(pDX, m_cbOverHeratingValue,2,4);
+	DDX_CBIndex(pDX, IDC_COMBO_OVERHEATINGWARNINGVALUE, m_cbOverHeratingValue);
+	DDV_MinMaxInt(pDX, m_cbOverHeratingValue, 2, 4);
 	DDX_CBString(pDX, IDC_COMBO_ULTRALIMITALARMING, m_cbUltraLimitAlarming);
 	DDX_CBIndex(pDX, IDC_COMBO_ULTRALIMITALARMVALUE, m_cbUltraLimitAlarmingValue);
 	DDV_MinMaxInt(pDX, m_cbUltraLimitAlarmingValue, 3, 5);
@@ -64,6 +65,7 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 	DDV_MinMaxInt(pDX, m_edTemperatureUpTime, 1, 60);
 	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE3, m_edSetTemperatureDownTime);
 	DDV_MinMaxInt(pDX, m_edSetTemperatureDownTime, 1, 3600);
+	DDX_Radio(pDX, IDC_RADIO_STARTANYTIME, m_rdStartMode);
 }
 
 
