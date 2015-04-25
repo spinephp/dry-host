@@ -100,6 +100,7 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_RUNPAUSETIME, m_edtRunPauseTime);
 	DDX_Text(pDX, IDC_EDIT_TEMPERATURE430, m_edTemperature430);
 	DDX_Text(pDX, IDC_EDIT_TEMPERATUREROOM, m_edTemperatureRoom);
+	DDX_Control(pDX, IDC_BUTTON_START, m_btnStartDry);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
@@ -118,6 +119,16 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
 	ON_BN_CLICKED(IDC_BUTTON_START, &ChostDlg::OnBnClickedButtonStart)
 	ON_NOTIFY(NM_THEMECHANGED, IDC_SCROLLBAR_HFIGURE, &ChostDlg::OnNMThemeChangedScrollbarHfigure)
+	ON_EN_SETFOCUS(IDC_EDIT_TEMPERATURE, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_SETTINGTEMPERATURE, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_TEMPERATURE430, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_TEMPERATUREROOM, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_AREA, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_RUNNING, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_AREATIME, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_RUNTIME, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_AREAPAUSETIME, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_RUNPAUSETIME, &ChostDlg::OnEnSetfocusEditTemperature)
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -167,6 +178,7 @@ BOOL ChostDlg::OnInitDialog()
 	setCommCtrlEnable(size!=0,3,14);
 	GetDlgItem(IDC_BUTTON_CLOSEPORT)->EnableWindow(m_bPortOpen);
 
+	m_curLineNo = -1;
 	m_startDryMode = 0;// 设置开始模式为 0-随时
 
 	v_index = 0;
@@ -433,6 +445,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 								SetTimer(1, 60000, NULL);
 								break;
 							case 4: // from head
+								m_curLineNo = -1;
 								OnBnClickedButtonStart();
 								break;
 							}
@@ -480,6 +493,7 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 {
 	float at = 0.0;
 	div_t h_m;
+	CTime time;
 	switch(nIDEvent){
 	case 0:
 		downSend(cmdGetTemperature,0);// 通知下位机发送当前实际温度
@@ -516,6 +530,24 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		Sleep(100);
 		downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
 		break;
+	case 2:
+		time = CTime::GetCurrentTime();
+		if (m_startDryTime > time){
+			CTimeSpan t = m_startDryTime - time;
+			if (t.GetTotalSeconds() < 86400){
+				CString caption;
+				caption.Format(L"%02d:%02d:%02d", t.GetHours(), t.GetMinutes(), t.GetSeconds());
+				int len = caption.GetLength();
+				SetDlgItemText(IDC_BUTTON_START, caption);
+			}
+			else{
+				SetDlgItemText(IDC_BUTTON_START, L"倒计时中...");
+			}
+		}
+		else{
+			KillTimer(2);
+			dryBegin();
+		}
 	}
 	v_index = 0;
 	CDialogEx::OnTimer(nIDEvent);
@@ -567,7 +599,6 @@ void ChostDlg::OnBnClickedButtonOpenport() //打开串口按钮消息响应函�
 	UINT nStopbit = m_cbStopbit.GetCurSel();
 	if(m_SerialPort.InitPort(m_hWnd,nPort,nBuad,"NOE"[iParity],nDatabit,nStopbit,EV_RXFLAG | EV_RXCHAR,512))
 	{
-		m_curLineNo = -1;
 		SetTimer(0,10000,NULL);
 		m_SerialPort.StartMonitoring();  //启动串口通信检测线程函数
 		downSend(cmdGetRoomTemperature, 0);// 通知下位机发送当前室温
@@ -778,13 +809,20 @@ void ChostDlg::OnBnClickedButtonOption()
 	dlg.m_cbUltraLimitAlarmingValue = m_allowOperatingValue[3];
 	dlg.m_edTemperatureUpTime = m_upTemperatureTime;
 	dlg.m_edSetTemperatureDownTime = m_downSetTemperatureTime;
+	dlg.m_noDrring = m_curLineNo==-1;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{
 		// TODO: 在此放置处理何时用
 		//  “确定”来关闭对话框的代码
-		m_dryLines.clear();
-		m_dryLines.assign(dlg.m_dryLines.begin(),dlg.m_dryLines.end());
+		if (m_curLineNo == -1){
+			m_dryLines.clear();
+			m_dryLines.assign(dlg.m_dryLines.begin(), dlg.m_dryLines.end());
+			m_upTemperatureTime = dlg.m_edTemperatureUpTime;
+			m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
+			m_startDryMode = dlg.m_rdStartMode;
+			m_startDryTime = dlg.m_startDryTime;
+		}
 		m_allowHandPause = dlg.m_cbHandPause=="是";
 		m_allowOperating[0] = dlg.m_cbLowPause=="是";
 		m_allowOperating[1] = dlg.m_cbTemperatureFilter=="是";
@@ -794,9 +832,6 @@ void ChostDlg::OnBnClickedButtonOption()
 		m_allowOperatingValue[1] = dlg.m_cbTemperatureFilterValue;
 		m_allowOperatingValue[2] = dlg.m_cbOverHeratingValue;
 		m_allowOperatingValue[3] = dlg.m_cbUltraLimitAlarmingValue;
-		m_upTemperatureTime = dlg.m_edTemperatureUpTime;
-		m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
-		m_startDryMode = dlg.m_rdStartMode;
 		saveXML();
 	}
 	else if (nResponse == IDCANCEL)
@@ -903,6 +938,7 @@ void ChostDlg::endDry(void)
 	downSend(cmdRunningStatus, 4);// 设置下位机当前运行状态为 4(结束)
 	m_file.Close();
 	setCommCtrlEnable(FALSE, 18, 38);
+	SetDlgItemText(IDC_BUTTON_START, L"开始干燥");
 }
 
 // 向下位机发送指令或传送数据
@@ -1191,8 +1227,16 @@ void ChostDlg::dryBegin(void)
 		SetTimer(1, 60000, NULL);
 		setCommCtrlEnable(TRUE, 18, 38);
 		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+		SetDlgItemText(IDC_BUTTON_START, L"正在干燥...");
 	}
 	else{
 		throw L"不能打开文件 " + m_filename;
 	}
+}
+
+
+void ChostDlg::OnEnSetfocusEditTemperature()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	GetDlgItem(IDC_BUTTON_OPTION)->SetFocus();
 }

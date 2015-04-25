@@ -78,6 +78,7 @@ private:
 	int m_dataInvalid; // 无效的传输数据数量
 	BOOL m_Pause; // 程序暂停
 	int m_startDryMode;
+	CTime m_startDryTime;
 
 	typedef std::tr1::function<void (float)> FNsettingTemperature;  
 	vector<FNsettingTemperature> m_fnSettingTemperature;
@@ -162,4 +163,6 @@ public:
 	CString m_edTemperature430;
 	CString m_edTemperatureRoom;
 	void dryBegin(void);
+	CButton m_btnStartDry;
+	afx_msg void OnEnSetfocusEditTemperature();
 };

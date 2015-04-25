@@ -1,7 +1,8 @@
 #pragma once
 #include "afxwin.h"
 #include   <vector>   
-using   namespace   std;   
+#include "afxdtctl.h"
+using   namespace   std;
 
 
 // optionDlg ¶Ô»°¿ò
@@ -64,4 +65,8 @@ private:
 	void strToArray(CString str, vector<int>& intArray);
 public:
 	int m_rdStartMode;
+	bool m_noDrring;
+	CTime m_startDryTime;
+	CDateTimeCtrl m_dtcDryStart;
+	afx_msg void OnBnClickedRadioStartanytime();
 };

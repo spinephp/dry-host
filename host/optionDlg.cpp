@@ -66,6 +66,7 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE3, m_edSetTemperatureDownTime);
 	DDV_MinMaxInt(pDX, m_edSetTemperatureDownTime, 1, 3600);
 	DDX_Radio(pDX, IDC_RADIO_STARTANYTIME, m_rdStartMode);
+	DDX_Control(pDX, IDC_DATETIMEPICKER1, m_dtcDryStart);
 }
 
 
@@ -84,6 +85,8 @@ BEGIN_MESSAGE_MAP(optionDlg, CDialogEx)
 	ON_BN_CLICKED(ID_DOWN, &optionDlg::OnBnClickedDown)
 	ON_WM_ACTIVATE()
 	ON_BN_CLICKED(IDOK, &optionDlg::OnBnClickedOk)
+	ON_BN_CLICKED(IDC_RADIO_STARTANYTIME, &optionDlg::OnBnClickedRadioStartanytime)
+	ON_BN_CLICKED(IDC_RADIO_STARTSETINGTIME, &optionDlg::OnBnClickedRadioStartanytime)
 END_MESSAGE_MAP()
 
 
@@ -155,7 +158,7 @@ void optionDlg::OnBnClickedSave()
 	OnSelchangeListLine();
 }
 
-
+// 处理 listbox 中，段号选择改变事件
 void optionDlg::OnSelchangeListLine()
 {
 	// TODO: 在此添加控件通知处理程序代码
@@ -165,7 +168,6 @@ void optionDlg::OnSelchangeListLine()
 	GetDlgItem(ID_DELETE)->EnableWindow(c);
 	GetDlgItem(ID_UP)->EnableWindow(c && i>0);
 	GetDlgItem(ID_DOWN)->EnableWindow(c && i<m_lstLine.GetCount()-1);
-
 }
 
 
@@ -268,6 +270,16 @@ BOOL optionDlg::OnInitDialog()
 
 	// TODO:  在此添加额外的初始化
 	loadXML();
+	m_dtcDryStart.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
+	if (!m_noDrring){
+		GetDlgItem(IDC_LIST_LINE)->EnableWindow(FALSE);
+		GetDlgItem(ID_ADD)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_UPTEMPERATURETIME)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_DOWNTEMPERATURETIME)->EnableWindow(FALSE);
+		GetDlgItem(IDC_RADIO_STARTANYTIME)->EnableWindow(FALSE);
+		GetDlgItem(IDC_RADIO_STARTSETINGTIME)->EnableWindow(FALSE);
+
+	}
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
 }
@@ -284,6 +296,13 @@ int optionDlg::digits(int n)
 void optionDlg::OnBnClickedOk()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	m_dtcDryStart.GetTime(m_startDryTime);
+	if (m_rdStartMode == 1){
+		if (CTime::GetCurrentTime() >= m_startDryTime){
+			MessageBox(L"定时时间设置错误！请重新设置。", L"错误", MB_ICONEXCLAMATION | MB_OK);
+			return;
+		}
+	}
 	int nLen = m_lstLine.GetCount();
 	m_dryLines.clear();
 	for(int i=0;i<nLen;i++){
@@ -317,4 +336,12 @@ void optionDlg::strToArray(CString str, vector<int>& intArray)
 	intArray.push_back(atoi(v[0]));
 	intArray.push_back(atoi(v[1]));
 	intArray.push_back(atoi(v[2]));
+}
+
+
+void optionDlg::OnBnClickedRadioStartanytime()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+	m_dtcDryStart.EnableWindow(m_rdStartMode);
 }
