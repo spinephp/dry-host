@@ -148,6 +148,7 @@ private:
 public:
 	afx_msg void OnBnClickedButtonStart();
 private:
+	void goLine(int lineNo, int lineTime);
 	void goNextLine(void);
 public:
 	void adjuster(double temperature);
@@ -162,7 +163,9 @@ private:
 public:
 	CString m_edTemperature430;
 	CString m_edTemperatureRoom;
+	float m_430Room;
 	void dryBegin(void);
 	CButton m_btnStartDry;
 	afx_msg void OnEnSetfocusEditTemperature();
+	int processInterruptFile(int lineNo, int lineTime);
 };

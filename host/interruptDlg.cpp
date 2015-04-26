@@ -77,8 +77,6 @@ BOOL interruptDlg::OnInitDialog()
 	}
 	m_cbLines.SetCurSel(m_curSelLine);
 
-	m_roomTemperature = 20;
-
 	CRect rect;
 	CPaintDC dc(this);
 	GetDlgItem(IDC_STATIC_PREPROCESS)->GetWindowRect(&rect);//获取控件相对于屏幕的位置

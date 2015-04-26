@@ -42,6 +42,9 @@
     <ClInclude Include="targetver.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="dryLine.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -62,9 +65,11 @@
     <ClCompile Include="interruptDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="dryLine.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
     <None Include="..\..\dry-host\host\res\host.rc2">
       <Filter>资源文件</Filter>
     </None>
