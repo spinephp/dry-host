@@ -72,6 +72,10 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_edtRunPauseTime(_T("0:0"))
 	, m_edTemperature430(_T(""))
 	, m_edTemperatureRoom(_T(""))
+	, m_edtSendTimes(0)
+	, m_edtReceviTimes(0)
+	, m_edtSendFarTimes(0)
+	, m_edtReciveValidTimes(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -101,6 +105,10 @@ void ChostDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_TEMPERATURE430, m_edTemperature430);
 	DDX_Text(pDX, IDC_EDIT_TEMPERATUREROOM, m_edTemperatureRoom);
 	DDX_Control(pDX, IDC_BUTTON_START, m_btnStartDry);
+	DDX_Text(pDX, IDC_EDIT_SENDTIMES, m_edtSendTimes);
+	DDX_Text(pDX, IDC_EDIT_RECIVETIMES, m_edtReceviTimes);
+	DDX_Text(pDX, IDC_EDIT_SENDFARTIME, m_edtSendFarTimes);
+	DDX_Text(pDX, IDC_EDIT_RECIVEVALIDTIME, m_edtReciveValidTimes);
 }
 
 BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
@@ -119,6 +127,8 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_OPTION, &ChostDlg::OnBnClickedButtonOption)
 	ON_BN_CLICKED(IDC_BUTTON_START, &ChostDlg::OnBnClickedButtonStart)
 	ON_NOTIFY(NM_THEMECHANGED, IDC_SCROLLBAR_HFIGURE, &ChostDlg::OnNMThemeChangedScrollbarHfigure)
+
+	// 禁止以下编辑框获得焦点
 	ON_EN_SETFOCUS(IDC_EDIT_TEMPERATURE, &ChostDlg::OnEnSetfocusEditTemperature)
 	ON_EN_SETFOCUS(IDC_EDIT_SETTINGTEMPERATURE, &ChostDlg::OnEnSetfocusEditTemperature)
 	ON_EN_SETFOCUS(IDC_EDIT_TEMPERATURE430, &ChostDlg::OnEnSetfocusEditTemperature)
@@ -129,6 +139,10 @@ BEGIN_MESSAGE_MAP(ChostDlg, CDialogEx)
 	ON_EN_SETFOCUS(IDC_EDIT_RUNTIME, &ChostDlg::OnEnSetfocusEditTemperature)
 	ON_EN_SETFOCUS(IDC_EDIT_AREAPAUSETIME, &ChostDlg::OnEnSetfocusEditTemperature)
 	ON_EN_SETFOCUS(IDC_EDIT_RUNPAUSETIME, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_SENDTIMES, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_SENDFARTIME, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_RECIVETIMES, &ChostDlg::OnEnSetfocusEditTemperature)
+	ON_EN_SETFOCUS(IDC_EDIT_RECIVEVALIDTIME, &ChostDlg::OnEnSetfocusEditTemperature)
 END_MESSAGE_MAP()
 
 // ChostDlg 消息处理程序
@@ -241,6 +255,8 @@ BOOL ChostDlg::OnInitDialog()
 	DrawTemperatureLine();
 	SetHStaff();
 
+	httpClinet = new CHttpClient(L"HttpClinet");
+
 	CoInitialize(NULL);
 	loadXLM();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -329,6 +345,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 		short int temperature;
 		float temper;
 		v_index = 0;
+		m_edtReceviTimes++;
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
 				temperature = *(short int*)(v_portin+2);
@@ -352,10 +369,12 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					}
 				}else{
 					m_dataInvalid++;
+					m_edtReciveValidTimes++;
 				}
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
 			case cmdGetRoomTemperature: // MSP430片内温度
+
 				temperature = *(short int*)(v_portin + 2);
 				temper = temperature / 1.45266 - 278.75;
 				str.Format(_T("%5.1f"), temper);
@@ -653,14 +672,9 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	   switch (pWnd->GetDlgCtrlID())//对某一个特定控件进行判断  
 	   {      
 	   case IDC_EDIT_TEMPERATURE:         // 实际温度文本框  
-		// here  
 		pDC->SetBkColor(m_redcolor);    // change the background  
-		// color [background colour  
-		// of the text ONLY]  
 		pDC->SetTextColor(m_textcolor); // change the text color  
-		hbr = (HBRUSH) m_redbrush;    // apply the blue brush  
-		// [this fills the control  
-		// rectangle]  
+		hbr = (HBRUSH) m_redbrush;    // apply the blue brush [this fills the control rectangle]  
 		break;    
 	   case IDC_EDIT_SETTINGTEMPERATURE:         // 设定温度文本框  
 		// but control is still filled with the brush color!  
@@ -668,13 +682,20 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		pDC->SetTextColor(m_textcolor); // change the text color  
 		hbr = (HBRUSH) m_bluebrush;     // apply the red brush [this fills the control rectangle]  
 		break;  
-	   case IDC_EDIT_AREAPAUSETIME:         // 设定温度文本框  
-	   case IDC_EDIT_RUNPAUSETIME:         // 设定温度文本框  
-		// but control is still filled with the brush color!  
-		pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
-		//pDC->SetTextColor(m_textcolor); // change the text color  
-		hbr = (HBRUSH) m_yellowbrush;     // apply the red brush [this fills the control rectangle]  
-		break;  
+	   case IDC_EDIT_AREAPAUSETIME:         // 段暂停时间文本框  
+	   case IDC_EDIT_RUNPAUSETIME:         // 全部暂停时间文本框  
+		   // but control is still filled with the brush color!  
+		   pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
+		   //pDC->SetTextColor(m_textcolor); // change the text color  
+		   hbr = (HBRUSH)m_yellowbrush;     // apply the red brush [this fills the control rectangle]  
+		   break;
+	   case IDC_EDIT_SENDFARTIME:         // 发送远程数据次数文本框  
+	   case IDC_EDIT_RECIVEVALIDTIME:         // 接收无效数据次数文本框  
+		   // but control is still filled with the brush color!  
+		   pDC->SetBkMode(TRANSPARENT);   // make background transparent [only affects the TEXT itself]  
+		   //pDC->SetTextColor(m_textcolor); // change the text color  
+		   hbr = (HBRUSH)m_yellowbrush;     // apply the red brush [this fills the control rectangle]  
+		   break;
 	   case IDC_EDIT_RUNNING:         // 设定温度文本框  
 		   if(m_runbrush){
 				// but control is still filled with the brush color!  
@@ -959,16 +980,27 @@ void ChostDlg::endDry(void)
 	SetDlgItemText(IDC_BUTTON_START, L"开始干燥");
 }
 
-// 向下位机发送指令或传送数据
+/**************************************************************************************
+* 功  能：向下位机发送指令或传送数据
+* 参  数：cmd 字符类型，指定命令
+*         degress 无符号整数，指定指令或数据
+* 返回值：void
+**************************************************************************************/
 void ChostDlg::downSend(char cmd, WORD degress)
 {
 	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
 	send[1] = cmd;
 	*(WORD*)(send+2) = degress;
 	m_SerialPort.WriteToPort(send,5);
+	m_edtSendTimes++;
+	UpdateData(false);
 }
 
-// 保存参数到配置文件
+/**************************************************************************************
+* 功  能：保存参数到配置文件
+* 参  数：void
+* 返回值：void
+**************************************************************************************/
 void ChostDlg::saveXML(void)
 {
 	CComPtr<IXMLDOMNodeList> spNodeList,spNodeList1; 
@@ -1062,15 +1094,21 @@ void ChostDlg::saveXML(void)
 void ChostDlg::OnBnClickedButtonStart()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!m_startDryMode)
+	if (!m_startDryMode){
 		dryBegin();
+	}
 	else{
 		SetTimer(2, 1000, NULL);
 	}
 }
 
-
-void ChostDlg::goLine(int lineNo,int lineTime)
+/**************************************************************************************
+* 功  能：从给定的线段号和时间处开始干燥
+* 参  数：lineNo 整数，指定线段号
+*         lineTime 整数，指定时间(距lineNo起点的时间)
+* 返回值：void
+**************************************************************************************/
+void ChostDlg::goLine(int lineNo, int lineTime)
 {
 	m_curLineNo = lineNo;
 	if (m_curLineNo<m_dryLines.size()){ // 干燥未结束
@@ -1090,6 +1128,11 @@ void ChostDlg::goLine(int lineNo,int lineTime)
 	}
 }
 
+/**************************************************************************************
+* 功  能：进入下一段干燥线
+* 参  数：void
+* 返回值：void
+**************************************************************************************/
 void ChostDlg::goNextLine(void)
 {
 	m_curLineNo++;
@@ -1117,18 +1160,23 @@ void ChostDlg::goNextLine(void)
 	}
 }
 
-
+/**************************************************************************************
+ * 功  能：判断当前温度与设定温度的差值，根据不同的阀值要求做相应处理
+ *         (用不同的颜色显示不同的温度差范围及是否触发声音报警)
+ * 参  数：temperature 双精度浮点数，指定实际温度
+ * 返回值：void 
+ **************************************************************************************/
 void ChostDlg::adjuster(double temperature)
 {
 	m_Pause = FALSE;
 	if(temperature < m_lbSettingtemperature-m_allowOperatingValue[2]){
 		// 温度低
 		if(m_allowOperating[2])
-			Beep (1000,1000);
+			Beep (1000,1000); 
 		m_edtRunning = "温度低";
 		m_runbrush = &m_yellowbrush;
 		if(temperature < m_lbSettingtemperature-m_allowOperatingValue[3]){
-			m_edtRunning = "温度低，暂停";
+			m_edtRunning = "温度低暂停";
 			m_runbrush = &m_redbrush;
 			if(m_allowOperating[3])
 				Beep (2000,500);
@@ -1153,18 +1201,31 @@ void ChostDlg::adjuster(double temperature)
 	}
 }
 
-
+/**************************************************************
+ * 处理当前温度及相关参数(保存到本地、传送到远端并显示到屏幕)
+ * 参数：temperature 无符号整数，指定实际温度
+ * 返回值：void
+ **************************************************************/
 void ChostDlg::savePoint(WORD temperature)
 {
+	CString s;
+	CString cmd = L"DryData";
+	CString data;
 	WORD record[4] = { m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
 	int size = sizeof(WORD) * 4;
 
+	// 保存到本地
 	m_file.SeekToEnd();
 	m_file.Write(record, size);
 	m_file.Flush();
 
-	toLP(record);
+	// 传送到远程
+	data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&time=%d&settingtemperature=%d&temperature=%d&mode=%d", cmd, record[2], record[0], record[1], record[3]);
+	int result = httpClinet->HttpPost(data, L"", s);
+	m_edtSendFarTimes++;
 
+	// 显示到屏幕
+	toLP(record);
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 	if (pScrollBar){
 		ULONGLONG filesize = m_file.GetLength();
@@ -1191,7 +1252,7 @@ void ChostDlg::savePoint(WORD temperature)
 	m_restoreTemperaturePoint.clear();
 }
 
-
+// 把 time 从 HH:MM 格式的字符串转换成以分种为单位的无符号整数
 UINT ChostDlg::timeToSecond(CString time)
 {
 	int pos = time.Find(':');
@@ -1255,9 +1316,9 @@ void ChostDlg::dryBegin(void)
 	downSend(cmdSetLineNo, 1);// 设置下位机当前段号为 1
 	Sleep(100);
 	downSend(cmdSetTime, 0);// 清零下位机总干燥时间
-	if (processInterruptFile(m_curLineNo,m_curLineTime)){
+	if (processInterruptFile(m_curLineNo+1,m_curLineTime)){
 		SetTimer(1, 60000, NULL);
-		setCommCtrlEnable(TRUE, 18, 38);
+		setCommCtrlEnable(TRUE, 18, 45);
 		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
 		SetDlgItemText(IDC_BUTTON_START, L"正在干燥...");
 	}
@@ -1277,56 +1338,114 @@ void ChostDlg::OnEnSetfocusEditTemperature()
 int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 {
 	CTime tm = CTime::GetCurrentTime();
-	m_filename = tm.Format(L"dry%Y%m%d.dat");
 	CString filehead = tm.Format(L"dry%Y%m%d%H%M%S");
-	if (m_file.m_hFile != CFile::hFileNull)
+	CString t_filename = NULL;
+	// 如记录文件已经存在，则保存已记录的内容到备份文件(每次中断保存在不同的文件中)
+	if (m_file.m_hFile != CFile::hFileNull && m_file.GetLength()){
 		m_file.Close();
-	CFileStatus status;
-	CString t_filename = m_filename;
-	int index = 0;
-	while (CFile::GetStatus(t_filename, status)){
-		t_filename.Format(L"%s%d", m_filename, index++);
-	}
-	if (index) CFile::Rename(m_filename, t_filename);
-
-	int openState = m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
-	if (openState){
-		CFile t_file;
-		int openState0 = t_file.Open(t_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
-		if (openState0){
-			WORD record[4];// = { m_lbTemperature, m_lbTemperature, 0, 0 };
-			int size = sizeof(WORD) * 4;
-			unsigned int preTime = 0;
-			bool lineChange = FALSE;
-			ULONGLONG filesize = m_file.GetLength();
-			int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
-
-			m_TotalTimes = 0;
-			m_lbSettingtemperature = m_lbTemperature;
-
-			m_file.Write(filehead, filehead.GetLength());
-			t_file.Seek(filehead.GetLength(), CFile::begin);
-			for (int i = 0; i < nSize; i++){
-				t_file.Read(record, size);
-				if (record[3] <= lineNo){
-					if (record[3] == lineNo && !lineChange){
-						preTime = record[2];
-						lineChange = TRUE;
-					}
-					if (lineChange && (record[2] - preTime) >= lineTime){
-						m_lbSettingtemperature = record[0]*0.0625;
-						m_TotalTimes = record[2];
-						break;
-					}
-					m_file.Write(record, size);
-					t_file.Read(record, size);
-				}
-			}
-			UpdateData(FALSE);
-			m_file.Flush();
-			t_file.Close();
-			return 1;
+		m_filename = m_file.GetFileName();
+		CFileStatus status;
+		t_filename = m_filename;
+		int index = 0;
+		while (CFile::GetStatus(t_filename, status)){
+			t_filename.Format(L"%s%d", m_filename, index++);
 		}
+		if (index) CFile::Rename(m_filename, t_filename);
+	}
+
+	// 记录文件不存在，则根据当前日期创建文件名，并把开始日期、时间和干燥曲线编号发送到远程数据库
+	else{
+		CString s;
+		CString cmd = L"DryHeader";
+		CString starttime = tm.Format(L"%Y-%m-%d %H:%M:%S");
+		CString _line_no;
+		CString data;
+		_line_no.Format(L"%d", 0); // 干燥曲线号
+		data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&starttime=%s&lineno=%s", cmd, starttime, _line_no);
+		int result = httpClinet->HttpPost(data,L"", s);
+		m_edtSendFarTimes++;
+
+		m_filename = tm.Format(L"dry%Y%m%d.dat");
+	}
+
+	// 打开新记录文件
+	int openState = m_file.Open(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeReadWrite);
+	if (openState){ // 如新文件打开成功
+		m_file.Write(filehead, filehead.GetLength()); // 写文件头
+		if (!t_filename.IsEmpty()){ // 如旧记录文件有内容，则把其导入新记录文件
+			CFile t_file;
+			int openState0 = t_file.Open(t_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
+			if (openState0){
+				WORD record[4];// = { m_lbTemperature, m_lbTemperature, 0, 0 };
+				int size = sizeof(WORD) * 4;
+				unsigned int preTime = 0;
+				bool lineChange = FALSE;
+				ULONGLONG filesize = m_file.GetLength();
+				int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
+
+				m_TotalTimes = 0;
+				m_lbSettingtemperature = m_lbTemperature;
+
+				t_file.Seek(filehead.GetLength(), CFile::begin);
+				for (int i = 0; i < nSize; i++){
+					t_file.Read(record, size);
+					if (record[3] <= lineNo){
+						if (record[3] == lineNo && !lineChange){
+							preTime = record[2];
+							lineChange = TRUE;
+						}
+						if (lineChange && (record[2] - preTime) >= lineTime){
+							m_lbSettingtemperature = record[0] * 0.0625;
+							m_TotalTimes = record[2];
+							break;
+						}
+						m_file.Write(record, size);
+						t_file.Read(record, size);
+					}
+				}
+				if (record[3] < lineNo){
+					int preSetTemperature = record[0];
+					int preTemperature = record[1];
+					preTime = record[2];
+					for (int i = record[3] + 1; i < lineNo; i++){
+						if (i % 2){
+							record[2] = m_dryLines[i][2] * 60 * 6 + preTime;
+						}
+						else{
+							record[2] = (m_dryLines[i][0] - preSetTemperature*0.0625) / m_dryLines[i][1] * 60 * 6 + preTime;
+						}
+						record[0] = m_dryLines[i][0];
+						record[1] = record[0];
+						record[3] = i;
+						m_file.Write(record, size);
+						preTime = record[2];
+						preSetTemperature = record[0];
+					}
+					if (lineTime > 0){
+						record[2] = lineTime + preTime;
+						if (lineNo % 2){
+							record[0] = m_dryLines[lineNo][0] * 16;
+						}
+						else{
+							record[0] = (m_dryLines[lineNo][0] + m_dryLines[lineNo][0] * lineTime / 360) * 16;
+						}
+						record[1] = record[0];
+						record[3] = lineNo;
+						m_file.Write(record, size);
+					}
+					m_lbSettingtemperature = record[0] * 0.0625;
+					m_TotalTimes = record[2];
+				}
+				t_file.Close();
+			}
+		}
+		else{
+			m_lbSettingtemperature = m_lbTemperature;
+			m_edtArea.Format(_T("%d℃ %s"), m_dryLines[lineNo][0], dryRunningStatus[0]);
+		}
+		UpdateData(FALSE);
+		m_file.Flush();
+		return 1;
 	}
 	return 0;
 }

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "SerialPort.h"
+#include "HttpClient.h"
 #include "afxwin.h"
 #include <functional>  
 #include <memory>  
@@ -79,6 +80,8 @@ private:
 	BOOL m_Pause; // ≥Ã–Ú‘›Õ£
 	int m_startDryMode;
 	CTime m_startDryTime;
+
+	CHttpClient *httpClinet; 
 
 	typedef std::tr1::function<void (float)> FNsettingTemperature;  
 	vector<FNsettingTemperature> m_fnSettingTemperature;
@@ -168,4 +171,8 @@ public:
 	CButton m_btnStartDry;
 	afx_msg void OnEnSetfocusEditTemperature();
 	int processInterruptFile(int lineNo, int lineTime);
+	int m_edtSendTimes;
+	int m_edtReceviTimes;
+	int m_edtSendFarTimes;
+	int m_edtReciveValidTimes;
 };
