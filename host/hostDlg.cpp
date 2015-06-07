@@ -405,6 +405,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 
 				switch (v_portin[2]){
 				case 0xff: // 干燥未进行
+				case 0x00: // 干燥未进行
 					GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
 					break;
 				default:
@@ -417,7 +418,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					}
 					dlg.m_dryLines.assign(m_dryLines.begin(), m_dryLines.end());
 
-					m_curLineNo = *(WORD*)(v_portin+2)-1;
+					m_curLineNo = v_portin[2]-1;
 					if (m_curLineNo >= 0){// 干燥已经开始
 						// 把干燥参数传递给断点对话框
 						dlg.m_curSelLine = m_curLineNo;
@@ -425,7 +426,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 						m_lbSettingtemperature = (*(WORD*)(v_portin + 4))*0.0625;
 						dlg.m_edSetingTemperature = m_lbSettingtemperature;
 						dlg.m_roomTemperature = _ttof(m_edTemperatureRoom);
-						h_m = div(*(WORD*)(v_portin + 6) / 6, 60);
+						h_m = div(*(WORD*)(v_portin + 6), 60);
 						m_edtRunTime.Format(_T("%2d:%02d"), h_m.quot, h_m.rem);
 						dlg.m_edAllTime = m_edtRunTime;
 						h_m = div(*(WORD*)(v_portin + 8), 60);
@@ -971,10 +972,12 @@ void ChostDlg::loadXLM(void)
 void ChostDlg::endDry(void)
 {
 	KillTimer(1);
-	downSend(cmdSetLineNo,0);// 设置下位机当前段号为 0
+	downSend(cmdSetLineNo, 0);// 设置下位机当前段号为 0
 	m_curLineNo = -1;
 	Sleep(100);
-	downSend(cmdRunningStatus, 4);// 设置下位机当前运行状态为 4(结束)
+	downSend(cmdSetSettingTemperature, -99);// 设置下位机当前段号为 0
+	Sleep(100);
+	downSend(cmdSetLineNo, 0xff00);// 设置下位机当前运行状态为 4(结束)
 	m_file.Close();
 	setCommCtrlEnable(FALSE, 18, 38);
 	SetDlgItemText(IDC_BUTTON_START, L"开始干燥");
@@ -1154,6 +1157,8 @@ void ChostDlg::goNextLine(void)
 		}
 
 		m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
+		Sleep(100);
+		downSend(cmdSetLineNo, (m_curLineNo << 8) | (state+1));// 设置下位机当前段号为 1
 	}
 	else{
 		endDry();
@@ -1313,9 +1318,9 @@ void ChostDlg::dryBegin(void)
 	m_curLinePauseTime = 0;
 	m_TotalPauseTime = 0;
 	m_dataInvalid = 0;
-	downSend(cmdSetLineNo, 1);// 设置下位机当前段号为 1
+	downSend(cmdSetLineNo, 0x0101);// 设置下位机当前段号为 1
 	Sleep(100);
-	downSend(cmdSetTime, 0);// 清零下位机总干燥时间
+	downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 清零下位机总干燥时间
 	if (processInterruptFile(m_curLineNo+1,m_curLineTime)){
 		SetTimer(1, 60000, NULL);
 		setCommCtrlEnable(TRUE, 18, 45);
@@ -1356,12 +1361,12 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 	// 记录文件不存在，则根据当前日期创建文件名，并把开始日期、时间和干燥曲线编号发送到远程数据库
 	else{
 		CString s;
-		CString cmd = L"DryHeader";
+		CString cmd = L"DryMain";
 		CString starttime = tm.Format(L"%Y-%m-%d %H:%M:%S");
 		CString _line_no;
 		CString data;
 		_line_no.Format(L"%d", 0); // 干燥曲线号
-		data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&starttime=%s&lineno=%s", cmd, starttime, _line_no);
+		data.Format(L"http://127.0.0.1/woo/index.php? cmd=%s&starttime=%s&lineno=%s", cmd, starttime, _line_no);
 		int result = httpClinet->HttpPost(data,L"", s);
 		m_edtSendFarTimes++;
 
