@@ -971,6 +971,11 @@ void ChostDlg::loadXLM(void)
 // 结束干燥
 void ChostDlg::endDry(void)
 {
+	CString data,s;
+	data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&state=%d", L"DryMain", -1);
+	int result = httpClinet->HttpPut(data, L"", s);
+	m_edtSendFarTimes++;
+
 	KillTimer(1);
 	downSend(cmdSetLineNo, 0);// 设置下位机当前段号为 0
 	m_curLineNo = -1;
@@ -1153,7 +1158,7 @@ void ChostDlg::goNextLine(void)
 		}
 		else{
 			downSend(cmdSetSettingTemperature, (WORD)(m_dryLines[m_curLineNo - 1][0] * 16));// 传送当前设定温度给下位机
-			m_lbSettingtemperature = m_dryLines[m_curLineNo][0];
+			m_lbSettingtemperature = m_dryLines[m_curLineNo-1][0];
 		}
 
 		m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
@@ -1318,9 +1323,11 @@ void ChostDlg::dryBegin(void)
 	m_curLinePauseTime = 0;
 	m_TotalPauseTime = 0;
 	m_dataInvalid = 0;
+	downSend(cmdSetLineNo, 0x0);// 设置下位机当前段号为 0，置下位机为初始状态
+	Sleep(100);
 	downSend(cmdSetLineNo, 0x0101);// 设置下位机当前段号为 1
 	Sleep(100);
-	downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 清零下位机总干燥时间
+	downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 设置下位机设定温度
 	if (processInterruptFile(m_curLineNo+1,m_curLineTime)){
 		SetTimer(1, 60000, NULL);
 		setCommCtrlEnable(TRUE, 18, 45);
@@ -1366,7 +1373,7 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 		CString _line_no;
 		CString data;
 		_line_no.Format(L"%d", 0); // 干燥曲线号
-		data.Format(L"http://127.0.0.1/woo/index.php? cmd=%s&starttime=%s&lineno=%s", cmd, starttime, _line_no);
+		data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&starttime=%s&lineno=%s&state=%d", cmd, starttime, _line_no,0);
 		int result = httpClinet->HttpPost(data,L"", s);
 		m_edtSendFarTimes++;
 

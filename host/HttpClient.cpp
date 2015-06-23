@@ -113,3 +113,7 @@ int CHttpClient::HttpPost(LPCTSTR strUrl, LPCTSTR strPostData, CString &strRespo
 {
 	return ExecuteRequest(L"POST", strUrl, strPostData, strResponse);
 }
+int CHttpClient::HttpPut(LPCTSTR strUrl, LPCTSTR strPostData, CString &strResponse)
+{
+	return ExecuteRequest(L"PUT", strUrl, strPostData, strResponse);
+}

@@ -20,6 +20,7 @@ public:
 		virtual ~CHttpClient(void);
 		int HttpGet(LPCTSTR strUrl, LPCTSTR strPostData, CString &strResponse);
 		int HttpPost(LPCTSTR strUrl, LPCTSTR strPostData, CString &strResponse);
+		int HttpPut(LPCTSTR strUrl, LPCTSTR strPostData, CString &strResponse);
 private:
 		int ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPostData, CString &strResponse);
 		void Clear();
