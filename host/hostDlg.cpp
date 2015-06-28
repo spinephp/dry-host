@@ -882,6 +882,7 @@ void ChostDlg::OnBnClickedButtonOption()
 BOOL ChostDlg::DestroyWindow()
 {
 	// TODO: 在此添加专用代码和/或调用基类
+	delete httpClinet;
 	spDoc.Release();
 	CoUninitialize();
 
@@ -1050,12 +1051,15 @@ void ChostDlg::saveXML(void)
 	CComPtr<IXMLDOMNode> spNode,spNode1,spNode2,spNode3;
 	BSTR tem;
 	CString str;
-	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"),&spNode);
+
+	// 上传实际温度时间间隔
+	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"), &spNode);
 	str.Format(_T("%d"),m_upTemperatureTime);
 	tem = str.AllocSysString();
 	spNode->put_text(tem);
 	SysFreeString(tem); // 用完释放
 
+	// 下传设定温度时间间隔
 	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"), &spNode1);
 	str.Format(_T("%d"), m_downSetTemperatureTime);
 	tem = str.AllocSysString();
@@ -1069,7 +1073,8 @@ void ChostDlg::saveXML(void)
 	spNode3->put_text(tem);
 	SysFreeString(tem); // 用完释放
 
-	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"),&spNode2);
+	// 是否允许手动暂停
+	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"), &spNode2);
 	str = m_allowHandPause? "TRUE":"FALSE";
 	tem = str.AllocSysString();
 	spNode2->put_text(tem);
@@ -1152,18 +1157,12 @@ void ChostDlg::goNextLine(void)
 
 		m_curLineTime = 0;
 		m_curLinePauseTime = 0;
-		if (m_curLineNo == 0){
-			downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 传送当前设定温度给下位机
-			m_lbSettingtemperature = m_lbTemperature;
-		}
-		else{
-			downSend(cmdSetSettingTemperature, (WORD)(m_dryLines[m_curLineNo - 1][0] * 16));// 传送当前设定温度给下位机
-			m_lbSettingtemperature = m_dryLines[m_curLineNo-1][0];
-		}
+		m_lbSettingtemperature = m_curLineNo ? m_dryLines[m_curLineNo - 1][0]:m_lbTemperature;
+		downSend(cmdSetSettingTemperature, (WORD)(m_lbSettingtemperature * 16));// 传送当前设定温度给下位机
 
 		m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
 		Sleep(100);
-		downSend(cmdSetLineNo, (m_curLineNo << 8) | (state+1));// 设置下位机当前段号为 1
+		downSend(cmdSetLineNo, ((state + 1) << 8) | (m_curLineNo+1));// 设置下位机当前段号为 1
 	}
 	else{
 		endDry();
