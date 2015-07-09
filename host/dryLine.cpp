@@ -54,13 +54,14 @@ void dryLine::draw(CDC *hdc,CFile file,int nCurpos=0)
 					lPos = file.Seek(size, CFile::current);
 					if (lPos < filesize){
 						file.Read(record, size);
-						m_dcMem.SelectObject(hPen1);
+						HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 						m_dcMem.SelectObject(hPen2);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[1]);
 						memcpy(m_record, record, size);
+						m_dcMem.SelectObject(oldPen);
 					}
 				}
 				DeleteObject(hPen1);
@@ -84,12 +85,13 @@ void dryLine::draw(CDC *hdc, CFile file, WORD *record, int nCurpos = 0)
 	if (nSize > nCurpos + 1){
 		HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
 		HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
-		m_dcMem.SelectObject(hPen1);
+		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen1);
 		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 		m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 		m_dcMem.SelectObject(hPen2);
 		m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[1]);
 		m_dcMem.LineTo(record[2] - nCurpos, record[1]);
+		m_dcMem.SelectObject(oldPen);
 		DeleteObject(hPen1);
 		DeleteObject(hPen2);
 	}
@@ -108,7 +110,7 @@ void dryLine::draw(CDC *hdc, vector< vector<int> > dryLines, WORD roomTemperatur
 	HPEN hPen2 = CreatePen(PS_SOLID, 1, m_bluecolor);
 	CPoint pt0(10, roomTemperature + 0);
 	m_dcMem.DPtoLP(&pt0);
-	m_dcMem.SelectObject(hPen2);
+	HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen2);
 	m_dcMem.MoveTo(pt0);
 	for (int i = 0; i < dryLines.size(); i++){
 		time = dryLines[i][2];
@@ -126,6 +128,7 @@ void dryLine::draw(CDC *hdc, vector< vector<int> > dryLines, WORD roomTemperatur
 	CPoint pt(times+10, roomTemperature + 0);
 	m_dcMem.DPtoLP(&pt);
 	m_dcMem.LineTo(pt);
+	m_dcMem.SelectObject(oldPen);
 	DeleteObject(hPen2);
 	if (hdc)
 		hdc->BitBlt(m_nLeft, m_nTop, m_nWidth, m_nHeight, &m_dcMem, 0, 0, SRCCOPY);
@@ -141,6 +144,7 @@ void dryLine::draw(CDC &hdc, CFile &file,UINT status)
 			ULONGLONG lPos;
 			TRY{
 				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_redcolor);
+				HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen1);
 				lPos = file.Seek(sizeof(dryHead), CFile::begin);
 				lPos += file.Read(m_record, size);
 				toLP(m_record,1.0/40,0.0625,10,0);
@@ -149,12 +153,12 @@ void dryLine::draw(CDC &hdc, CFile &file,UINT status)
 						lPos += file.Read(record, size);
 						toLP(record, 1.0/40, 0.0625, 10, 0);
 						if (record[2] == m_record[2]) continue;
-						m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2], m_record[1]);
 						m_dcMem.LineTo(record[2], record[1]);
 						memcpy(m_record, record, size);
 					}
 				}
+				m_dcMem.SelectObject(oldPen);
 				DeleteObject(hPen1);
 			}
 				CATCH(CFileException, e){
@@ -191,7 +195,7 @@ void dryLine::setStartPoint(CDC *hdc,int time = 0)
 	if (time != m_time){
 		WORD record[4] = { 0, m_nHeight, m_time*3, 0 };
 		HPEN hPen = CreatePen(PS_SOLID, 1, m_greencolor);
-		m_dcMem.SelectObject(hPen);
+		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
 		int nOldMode = m_dcMem.SetROP2(R2_NOTXORPEN);
 		if (m_time != -1){
 			toLP(record, 1, 1, 10, 0);
@@ -205,6 +209,7 @@ void dryLine::setStartPoint(CDC *hdc,int time = 0)
 		m_dcMem.MoveTo(record[2],record[0]);
 		m_dcMem.LineTo(record[2], record[1]);
 		m_dcMem.SetROP2(nOldMode);
+		m_dcMem.SelectObject(oldPen);
 		DeleteObject(hPen);
 		m_time = time;
 		paint(hdc);

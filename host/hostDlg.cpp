@@ -890,6 +890,10 @@ BOOL ChostDlg::DestroyWindow()
 	if (m_file.m_hFile != CFile::hFileNull)
 		m_file.Close();
 
+	m_dcMem.DeleteDC();
+	m_dcMemTime.DeleteDC();
+	m_dcMemHG.DeleteDC();
+
 	return CDialogEx::DestroyWindow();
 }
 

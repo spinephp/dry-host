@@ -45,4 +45,6 @@ public:
 	afx_msg void OnBnClickedRadio5();
 private:
 	int lineNoToTime(int lineNo, int roomTemperature);
+public:
+	virtual BOOL DestroyWindow();
 };

@@ -172,3 +172,12 @@ int interruptDlg::lineNoToTime(int lineNo,int roomTemperature=20)
 	}
 	return times;
 }
+
+
+BOOL interruptDlg::DestroyWindow()
+{
+	// TODO:  在此添加专用代码和/或调用基类
+	delete dryline;
+
+	return CDialogEx::DestroyWindow();
+}
