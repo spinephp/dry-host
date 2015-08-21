@@ -782,7 +782,7 @@ void ChostDlg::DrawTemperatureLine(void)
 	CDC *hdc = GetDC();
 	if (m_file.m_hFile != CFile::hFileNull && hdc){
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-		int nCurpos = pScrollBar->GetScrollPos();
+		ULONGLONG nCurpos = pScrollBar->GetScrollPos();
 		int size = sizeof(WORD)* 4;
 		ULONGLONG filesize = m_file.GetLength();
 		ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size; //m_ptrArray[0].GetSize();
