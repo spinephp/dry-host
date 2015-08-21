@@ -30,7 +30,7 @@ const float temp430[] = { 28.3 };
 const float tempRoom[] = { 20.6 };
 
 const CString dryRunningStatus[] = { _T("ÉıÎÂ"), _T("±£ÎÂ"), _T("½µÎÂ"), _T("ÔİÍ£"), _T("½áÊø") };
-
+const CString domain = _T("http://www.yrr8.com/woo/");
 struct dryRecord{
 	WORD record[4];
 };

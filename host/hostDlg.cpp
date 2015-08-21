@@ -976,9 +976,10 @@ void ChostDlg::loadXLM(void)
 // 结束干燥
 void ChostDlg::endDry(void)
 {
-	CString data,s;
-	data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&state=%d", L"DryMain", -1);
-	int result = httpClinet->HttpPut(data, L"", s);
+	CString data, url,s;
+	url.Format(L"%sindex.php? cmd=%s",domain,L"DryMain");
+	data.Format(L"{\"item\":{\"drymain\":{\"state\":%d}}}",-1);
+	int result = httpClinet->HttpPut(url, data, s);
 	m_edtSendFarTimes++;
 
 	KillTimer(1);
@@ -1223,7 +1224,7 @@ void ChostDlg::savePoint(WORD temperature)
 {
 	CString s;
 	CString cmd = L"DryData";
-	CString data;
+	CString data,url;
 	WORD record[4] = { m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
 	int size = sizeof(WORD) * 4;
 
@@ -1233,8 +1234,9 @@ void ChostDlg::savePoint(WORD temperature)
 	m_file.Flush();
 
 	// 传送到远程
-	data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&time=%d&settingtemperature=%d&temperature=%d&mode=%d", cmd, record[2], record[0], record[1], record[3]);
-	int result = httpClinet->HttpPost(data, L"", s);
+	url.Format(L"%sindex.php? cmd=%s", domain,cmd);
+	data.Format(L"{\"item\":{\"drydata\":{\"time\":%d,\"settingtemperature\":%d,\"temperature\":%d,\"mode\":%d}}}", record[2], record[0], record[1], record[3]);
+	int result = httpClinet->HttpPost(url, data, s);
 	m_edtSendFarTimes++;
 
 	// 显示到屏幕
@@ -1374,10 +1376,11 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 		CString cmd = L"DryMain";
 		CString starttime = tm.Format(L"%Y-%m-%d %H:%M:%S");
 		CString _line_no;
-		CString data;
+		CString data,url;
 		_line_no.Format(L"%d", 0); // 干燥曲线号
-		data.Format(L"http://www.yrr8.com/woo/index.php? cmd=%s&starttime=%s&lineno=%s&state=%d", cmd, starttime, _line_no,0);
-		int result = httpClinet->HttpPost(data,L"", s);
+		url.Format(L"%sindex.php? cmd=%s", domain, cmd);
+		data.Format(L"{\"item\":{\"drymain\":{\"starttime\":%s,\"lineno\":%s,\"state\":%d}}}", starttime, _line_no, 0);
+		int result = httpClinet->HttpPost(url, data, s);
 		m_edtSendFarTimes++;
 
 		m_filename = tm.Format(L"dry%Y%m%d.dat");
