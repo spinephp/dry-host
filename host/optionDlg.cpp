@@ -28,6 +28,7 @@ optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	, m_edTemperatureUpTime(0)
 	, m_edSetTemperatureDownTime(0)
 	, m_rdStartMode(0)
+	, m_edtUrl(_T(""))
 {
 	m_cbLowPauseValue = 3;
 	m_cbTemperatureFilterValue = 1;
@@ -67,6 +68,7 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 	DDV_MinMaxInt(pDX, m_edSetTemperatureDownTime, 1, 3600);
 	DDX_Radio(pDX, IDC_RADIO_STARTANYTIME, m_rdStartMode);
 	DDX_Control(pDX, IDC_DATETIMEPICKER1, m_dtcDryStart);
+	DDX_Text(pDX, IDC_EDIT_WWW, m_edtUrl);
 }
 
 

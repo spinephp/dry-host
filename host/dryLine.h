@@ -23,8 +23,8 @@ public:
 
 	void setStartPoint(CDC *hdc,int time);
 
-	void draw(CDC *hdc, CFile file, int nCurpos);
-	void draw(CDC *hdc, CFile file, WORD *record, int nCurpos);
+	void draw(CDC *hdc, CFile &file, int nCurpos);
+	void draw(CDC *hdc, CFile &file, WORD *record, int nCurpos);
 	void draw(CDC *hdc, vector< vector<int> > dryLines, WORD roomTemperature);
 	void draw(CDC &hdc, CFile &file, UINT status);
 	void paint(CDC *hdc);

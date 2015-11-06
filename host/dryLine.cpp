@@ -35,7 +35,7 @@ dryLine::~dryLine()
 	m_dcMem.DeleteDC();
 }
 
-void dryLine::draw(CDC *hdc,CFile file,int nCurpos=0)
+void dryLine::draw(CDC *hdc,CFile &file,int nCurpos=0)
 {
 	m_dcMem.FillSolidRect(0, 0, m_nWidth, m_nHeight, RGB(255, 255, 255));
 	if (file.m_hFile != CFile::hFileNull && hdc){
@@ -77,7 +77,7 @@ void dryLine::draw(CDC *hdc,CFile file,int nCurpos=0)
 	}
 }
 
-void dryLine::draw(CDC *hdc, CFile file, WORD *record, int nCurpos = 0)
+void dryLine::draw(CDC *hdc, CFile &file, WORD *record, int nCurpos = 0)
 {
 	int size = sizeof(WORD) * 4;
 	ULONGLONG filesize = file.GetLength();

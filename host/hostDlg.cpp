@@ -54,6 +54,7 @@ END_MESSAGE_MAP()
 // ChostDlg 对话框
 
 
+bool ChostDlg::ignoreWeb = false;
 
 ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(ChostDlg::IDD, pParent)
@@ -197,7 +198,6 @@ BOOL ChostDlg::OnInitDialog()
 
 	v_index = 0;
 	v_lastTemperature = -100;
-	m_smoothvalue = m_allowOperatingValue[1]*16; // 设置 10 秒内温度变化阀值在 1℃ 之内
 
 	m_redcolor=RGB(255,0,0);                      // 红色  
 	m_bluecolor=RGB(0,0,255);                     // 蓝色  
@@ -251,7 +251,7 @@ BOOL ChostDlg::OnInitDialog()
 	tmp.DeleteObject();
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
-	pScrollBar->SetScrollRange(0,34560);//滑块移动的位置为0——34560；
+	pScrollBar->SetScrollRange(0,32767);//滑块移动的位置为0——34560；32767
 	DrawTemperatureLine();
 	SetHStaff();
 
@@ -259,6 +259,16 @@ BOOL ChostDlg::OnInitDialog()
 
 	CoInitialize(NULL);
 	loadXLM();
+	m_smoothvalue = m_allowOperatingValue[1] * 16; // 设置 10 秒内温度变化阀值在 1℃ 之内
+
+	m_fnSavePoint = bind1st(mem_fun(&ChostDlg::savePoint), this);
+	//m_fnSavePoint = bind(&ChostDlg::savePoint, this, std::tr1::placeholders::_1);
+	m_fnTemperature.push_back(m_fnSavePoint);
+
+	m_fnAdjuster = bind1st(mem_fun(&ChostDlg::adjuster), this);
+	//m_fnAdjuster = bind(&ChostDlg::adjuster, this, std::tr1::placeholders::_1);
+	m_fnTemperature.push_back(m_fnAdjuster);
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -334,11 +344,118 @@ HCURSOR ChostDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+// 运行中断对话框
+void ChostDlg::runInterruptDlg(void)
+{
+	m_curLineNo = v_portin[2] - 1;
+	if (m_curLineNo >= 0){// 干燥已经开始
+		// 把干燥参数传递给断点对话框
+		div_t h_m;
+		interruptDlg dlg;
+		for (int i = 0; i<m_dryLines.size(); i++){
+			CString str;
+			str.Format(_T("%d℃ %s"), m_dryLines[i][0], m_dryLines[i][1]>0 ? _T("升温") : (m_dryLines[i][1] == 0 ? _T("保温") : _T("降温")));
+			dlg.m_lineNames.push_back(str);
+		}
+		dlg.m_dryLines.assign(m_dryLines.begin(), m_dryLines.end());
+		dlg.m_curSelLine = m_curLineNo;
+		dlg.m_edLineName.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[0]);
+		m_lbSettingtemperature = (*(WORD*)(v_portin + 4))*0.0625;
+		dlg.m_edSetingTemperature = m_lbSettingtemperature;
+		dlg.m_roomTemperature = _ttof(m_edTemperatureRoom);
+		h_m = div(*(WORD*)(v_portin + 8), 60);
+		m_edtRunTime.Format(timeFormat, h_m.quot, h_m.rem);
+		dlg.m_edAllTime = m_edtRunTime;
+		h_m = div(*(WORD*)(v_portin + 6), 60);
+		m_edtAreaTime.Format(timeFormat, h_m.quot, h_m.rem);
+		dlg.m_edLineTime = m_edtAreaTime;
+		dlg.m_edTemperature = m_lbTemperature;
+		dlg.setFile(&m_file);
+		INT_PTR nResponse = dlg.DoModal();
+		if (nResponse == IDOK)
+		{
+			// TODO: 在此放置处理何时用
+			//  “确定”来关闭对话框的代码
+			// 根据断点对话框参数，设置如何继续干燥
+			int size = sizeof(WORD) * 4;
+			ULONGLONG filesize = m_file.GetLength();
+			ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size; //m_ptrArray[0].GetSize();
+			WORD record[4];
+			m_curLinePauseTime = 0;
+			m_TotalTimes = timeToSecond(dlg.m_edAllTime);
+			m_TotalPauseTime = 0;
+			m_curLineNo = dlg.m_curSelLine;
+			switch (dlg.m_rdAutoRun){
+			case 0:// 以文件
+				m_Pause = false;
+				if (m_file.GetLength() > sizeof(dryHead)){
+					m_file.Seek(sizeof(dryHead), CFile::begin);
+					m_file.Read(record, size);
+					m_TotalTimes = record[0];
+					m_lbSettingtemperature = record[1];
+					m_lbTemperature = record[2];
+					m_curLineNo = record[3];
+					findLineStart(m_curLineNo, record);
+					m_curLineTime = m_TotalTimes - record[0];
+				}
+				SetTimer(1, 60000, NULL);
+				break;
+			case 1: // in setting temperature
+				m_TotalTimes = 0;
+				m_curLineTime = 0;
+				m_Pause = false;
+				m_curLineNo = 0;
+				m_lbSettingtemperature = tempRoom[0];
+				while (m_lbSettingtemperature < dlg.m_edSetingTemperature){
+					OnTimer(1);
+				}
+				if (processInterruptFile(m_curLineNo, m_curLineTime)){
+					SetTimer(1, 60000, NULL);
+				}
+				break;
+			case 2: // in time
+				if (processInterruptFile(m_curLineNo, timeToSecond(dlg.m_edLineTime)/10)){
+					dryRuning();
+				}
+				break;
+			case 3: // from current line begin
+				if (processInterruptFile(m_curLineNo, 0)){
+					m_curLineNo--;
+					goNextLine();
+					SetTimer(1, 60000, NULL);
+				}
+				break;
+			case 4: // from head
+				OnBnClickedButtonStart();
+				break;
+			}
+			DrawTemperatureLine();
+			UpdateData();
+			GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+			setCommCtrlEnable(TRUE, 18, 38);
+			dryMainId = getMainIdFromWeb();
+		}
+		else if (nResponse == IDCANCEL)
+		{
+			// TODO: 在此放置处理何时用
+			//  “取消”来关闭对话框的代码
+		}
+		else if (nResponse == -1)
+		{
+			TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+			TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+		}
+	}
+	else{
+		// 使能“开始干燥”按钮
+		GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
+	}
+}
 
 //字符接收消息响应函数
-LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
+LONG ChostDlg::OnComm(WPARAM ch, LPARAM port)
 {
-	v_portin[v_index++] = ch;
+		v_portin[v_index++] = ch;
 	if(v_portin[v_index-1]==0xfe && (v_index==5 || v_index==13)){ //接收完毕
 		CString str; 
 		char cmd = v_portin[1];
@@ -349,20 +466,15 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 		switch(cmd){
 			case cmdGetTemperature: // 当前实际温度
 				temperature = *(short int*)(v_portin+2);
-				str.Format(_T("%5.1f"), temperature*0.0625);
-				m_lbTemperature = _ttof(str);// swscanf(str, _T("%5.1f"), &m_lbTemperature);
+				showTemperature(temperature);
 				if (v_lastTemperature == -100)
 					v_lastTemperature = temperature;
 				if(m_allowOperating[1] && temperature > v_lastTemperature-m_smoothvalue && temperature < v_lastTemperature+m_smoothvalue || !m_allowOperating[1] && temperature > -800 && temperature < 3200){ // ，为正常，否则认为是由其它因素造成的误差
-					v_lastTemperature = temperature;
-					//m_lbTemperature = strtod(str, NULL);// = v_portin.one*0.0625; //将接收到的字符存入编辑框对应的变量中
 					if(m_curLineNo>-1){// 干燥已开始
-						if(((int)m_lbSettingtemperature)==-100){
-							m_lbSettingtemperature = m_lbTemperature;
-							m_edtArea.Format(_T("%d℃ %s"),m_dryLines[m_curLineNo][0],dryRunningStatus[0]);
+						for (UINT i = 0; i<m_fnTemperature.size(); i++){
+							FNsettingTemperature fun = m_fnTemperature[i];
+							(fun)(temperature);
 						}
-						adjuster(temperature*0.0625);
-						savePoint(temperature);
 					}else{
 						m_edtRunning = L"未开始";
 						m_runbrush = NULL;
@@ -371,6 +483,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					m_dataInvalid++;
 					m_edtReciveValidTimes++;
 				}
+				v_lastTemperature = temperature;
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
 			case cmdGetRoomTemperature: // MSP430片内温度
@@ -395,7 +508,8 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 			case cmdGetAll: // 下位机全部信息
 
 				// 显示实际温度
-				m_lbTemperature = (*(WORD*)(v_portin + 10))*0.0625;
+				//m_lbTemperature = (*(WORD*)(v_portin + 10))*0.0625;
+				showTemperature((*(WORD*)(v_portin + 10)));
 
 				str.Format(L"DS18B20 温度为 %2.1f, 要对室温进行较准吗?", m_lbTemperature);
 				if (MessageBox(str, L"室温较准", MB_ICONQUESTION | MB_OKCANCEL) == IDOK){
@@ -409,94 +523,7 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 					GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
 					break;
 				default:
-					div_t h_m;
-					interruptDlg dlg;
-					for(int i=0;i<m_dryLines.size();i++){
-						CString str;
-						str.Format(_T("%d℃ %s"),m_dryLines[i][0],m_dryLines[i][1]>0? _T("升温"):(m_dryLines[i][1]==0? _T("保温"):_T("降温")));
-						dlg.m_lineNames.push_back(str);
-					}
-					dlg.m_dryLines.assign(m_dryLines.begin(), m_dryLines.end());
-
-					m_curLineNo = v_portin[2]-1;
-					if (m_curLineNo >= 0){// 干燥已经开始
-						// 把干燥参数传递给断点对话框
-						dlg.m_curSelLine = m_curLineNo;
-						dlg.m_edLineName.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[0]);
-						m_lbSettingtemperature = (*(WORD*)(v_portin + 4))*0.0625;
-						dlg.m_edSetingTemperature = m_lbSettingtemperature;
-						dlg.m_roomTemperature = _ttof(m_edTemperatureRoom);
-						h_m = div(*(WORD*)(v_portin + 6), 60);
-						m_edtRunTime.Format(_T("%2d:%02d"), h_m.quot, h_m.rem);
-						dlg.m_edAllTime = m_edtRunTime;
-						h_m = div(*(WORD*)(v_portin + 8), 60);
-						m_edtAreaTime.Format(_T("%2d:%02d"), h_m.quot, h_m.rem);
-						dlg.m_edLineTime = m_edtAreaTime;
-						dlg.m_edSetingTemperature = m_lbSettingtemperature;
-						dlg.m_edTemperature = m_lbTemperature;
-						INT_PTR nResponse = dlg.DoModal();
-						if (nResponse == IDOK)
-						{
-							// TODO: 在此放置处理何时用
-							//  “确定”来关闭对话框的代码
-							// 根据断点对话框参数，设置如何继续干燥
-							m_curLinePauseTime = 0;
-							m_TotalTimes = timeToSecond(dlg.m_edAllTime);
-							m_TotalPauseTime = 0;
-							m_curLineNo = dlg.m_curSelLine;
-							switch (dlg.m_rdAutoRun){
-							case 0:
-								m_curLineTime = 0;
-								m_Pause = false;
-								while (m_lbSettingtemperature < m_lbTemperature){
-									OnTimer(1);
-								}
-								SetTimer(1, 60000, NULL);
-								break;
-							case 1: // in temperature
-								m_curLineTime;
-								m_Pause = false;
-								while (m_lbSettingtemperature < m_lbTemperature){
-									OnTimer(1);
-								}
-								SetTimer(1, 60000, NULL);
-								break;
-							case 2: // in time
-								m_curLineTime = timeToSecond(dlg.m_edLineTime);
-								SetTimer(1, 60000, NULL);
-								break;
-							case 3: // from current line begin
-								if (processInterruptFile(m_curLineNo, 0)){
-									m_curLineNo--;
-									goNextLine();
-									SetTimer(1, 60000, NULL);
-								}
-								break;
-							case 4: // from head
-								m_curLineNo = -1;
-								OnBnClickedButtonStart();
-								break;
-							}
-							DrawTemperatureLine();
-							UpdateData();
-							GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
-							setCommCtrlEnable(TRUE, 18, 38);
-						}
-						else if (nResponse == IDCANCEL)
-						{
-							// TODO: 在此放置处理何时用
-							//  “取消”来关闭对话框的代码
-						}
-						else if (nResponse == -1)
-						{
-							TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
-							TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
-						}
-					}
-					else{
-						// 使能“开始干燥”按钮
-						GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
-					}
+					runInterruptDlg();
 				}
 				break;
 			case cmdGetLineTime: // 下位机当前段运行时间,单位：分
@@ -518,29 +545,90 @@ LONG ChostDlg::OnComm(WPARAM ch,LPARAM port)
 	return 0;
 }
 
+/*
+* 查找段开始记录
+* @param lineno - 整数，指定要查找的段号
+*        record - 指向 WORD 的指针，保存查找到的段 lineno 开始记录
+* @return 无
+*/
+void ChostDlg::findLineStart(int lineno, WORD *record){
+	int size = sizeof(WORD) * 4;
+	ULONGLONG filesize = m_file.GetLength();
+	ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size; //m_ptrArray[0].GetSize();
+	ULONGLONG p = nSizes / 2, p0 = 0, p1 = nSizes;
+	while (p1 > p0){
+		m_file.Seek(p*size + sizeof(dryHead), CFile::begin);
+		m_file.Read(record, size);
+		if (record[3] < lineno){
+			p0 = p;
+		}
+		else{
+			p1 = p;
+		}
+		p = (p1 + p0) / 2;
+	}
+}
+
+/*
+* 查找段开始记录
+* @param lineno - 整数，指定要查找的段号
+*        record - 指向 WORD 的指针，保存查找到的段 lineno 开始记录
+* @return 无
+*/
+ULONGLONG ChostDlg::findLinePoint(int time, WORD *record){
+	int size = sizeof(WORD) * 4;
+	ULONGLONG pos = sizeof(dryHead);
+	ULONGLONG filesize = m_file.GetLength();
+	ULONGLONG nSizes = time; //m_ptrArray[0].GetSize();
+	ULONGLONG p = nSizes / 2, p0 = 0, p1 = nSizes;
+	WORD record1[4];
+	do{
+		pos = m_file.Seek(p*size + sizeof(dryHead), CFile::begin);
+		pos += m_file.Read(record, size);
+		if (record[2] == time)
+			break;
+		else if (record[2] < time){
+			if (p == p0) break;
+			p0 = p;
+		}
+		else{
+			if (p == p1) break;
+			p1 = p;
+		}
+		p = (p1 + p0) / 2;
+	}while (p1 > p0);
+	if (p>1 && record[2] > time){
+		m_file.Seek(-2*size, CFile::current);
+		m_file.Read(record, size);
+	}
+	if (m_file.Read(record1, size)){
+		m_file.Seek(-size, CFile::current);
+		if (record1[2] > record[2] + 1){
+			record[0] = (WORD)(record[0] + double(time - record[2]) / double(record1[2] - record[2])*(record1[0] - record[0]));
+			record[1] = (WORD)(record[1] + double(time - record[2]) / double(record1[2] - record[2])*(record1[1] - record[1]));
+			record[2] = time;
+		}
+	}
+	return pos;
+}
+
 void  ChostDlg::OnTimer(UINT nIDEvent)
 {
 	float at = 0.0;
-	div_t h_m;
 	CTime time;
 	switch(nIDEvent){
 	case 0:
 		downSend(cmdGetTemperature,0);// 通知下位机发送当前实际温度
-		m_TotalTimes++;
+		setRunTime(m_TotalTimes + 1);
 		break;
 	case 1:
-		if(m_Pause){ // 程序暂停
-			m_curLinePauseTime++;
-			m_TotalPauseTime++;
+		if (m_Pause){ // 程序暂停
+			setLinePauseTime(m_curLinePauseTime+1);
+			setRunPauseTime(m_TotalPauseTime+1);
 		}else{ // 程序未暂停
-			m_curLineTime++;
+			setLineTime(m_curLineTime + 1);
 			at = m_dryLines[m_curLineNo][1]/60.0;
 		}
-		h_m = div((int)(m_TotalTimes/6),60);
-		m_edtRunTime.Format(_T("%2d:%02d"),h_m.quot,h_m.rem);
-		m_edtAreaTime.Format(_T("%2d:%02d"),m_curLineTime/60,m_curLineTime%60);
-		m_edtRunPauseTime.Format(_T("%2d:%02d"),m_TotalPauseTime/60,m_TotalPauseTime%60);
-		m_edtAreaPauseTime.Format(_T("%2d:%02d"),m_curLinePauseTime/60,m_curLinePauseTime%60);
 		if(m_dryLines[m_curLineNo][1]){ // 升温
 			float t = m_lbSettingtemperature;
 			t += at;
@@ -736,7 +824,7 @@ void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 			}
 		break;
 		case SB_LINERIGHT://点击右边的箭头
-			if(TempPos<34560)
+			if(TempPos<34560) // 32767
 			{
 				TempPos++;
 			}
@@ -786,19 +874,24 @@ void ChostDlg::DrawTemperatureLine(void)
 		int size = sizeof(WORD)* 4;
 		ULONGLONG filesize = m_file.GetLength();
 		ULONGLONG nSizes = (filesize - sizeof(dryHead)) / size; //m_ptrArray[0].GetSize();
-		if (nSizes && nSizes > nCurpos+1){
+		if (nSizes){
 			WORD record[4];
 			ULONGLONG lPos;
 			TRY{
 				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_bluecolor);
 				HPEN hPen2 = CreatePen(PS_SOLID, 1, m_redcolor);
-				lPos = m_file.Seek(nCurpos * size + sizeof(dryHead), CFile::begin);
-				lPos += m_file.Read(m_record, size);
+				lPos = findLinePoint(nCurpos, m_record);
 				toLP(m_record);
+				//m_record[2] = nCurpos;
 				for (ULONGLONG i = 1; i < m_nWidth && i < nSizes - 1; i++){
-					if (lPos < filesize){
-						lPos += m_file.Read(record, size);
+					if (m_file.Read(record, size)){
+						//lPos = m_file.Read(record, size);
 						toLP(record);
+						//if (record[2] - nCurpos){
+						//	record[0] += (time - record[2]) / (record1[2] - record[2])*(record1[0] - record[0]);
+						//	record[1] += (time - record[2]) / (record1[2] - record[2])*(record1[1] - record[1]);
+						//	record[2] = time;
+						//}
 						m_dcMem.SelectObject(hPen1);
 						m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 						m_dcMem.LineTo(record[2] - nCurpos, record[0]);
@@ -841,7 +934,8 @@ void ChostDlg::OnBnClickedButtonOption()
 	dlg.m_cbUltraLimitAlarmingValue = m_allowOperatingValue[3];
 	dlg.m_edTemperatureUpTime = m_upTemperatureTime;
 	dlg.m_edSetTemperatureDownTime = m_downSetTemperatureTime;
-	dlg.m_noDrring = m_curLineNo==-1;
+	dlg.m_edtUrl = m_url;
+	dlg.m_noDrring = m_curLineNo == -1;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{
@@ -852,6 +946,7 @@ void ChostDlg::OnBnClickedButtonOption()
 			m_dryLines.assign(dlg.m_dryLines.begin(), dlg.m_dryLines.end());
 			m_upTemperatureTime = dlg.m_edTemperatureUpTime;
 			m_downSetTemperatureTime = dlg.m_edSetTemperatureDownTime;
+			m_url = dlg.m_edtUrl;
 			m_startDryMode = dlg.m_rdStartMode;
 			m_startDryTime = dlg.m_startDryTime;
 		}
@@ -932,27 +1027,12 @@ void ChostDlg::loadXLM(void)
 
 		}
 
-		CComPtr<IXMLDOMNode> spNode, spNode1, spNode2,spNode3;
-		BSTR tem;
 		CString str;
-		spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"), &spNode);
-		spNode->get_text(&tem);
-		str = tem;
-		m_upTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_upTemperatureTime);
-
-		spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"), &spNode1);
-		spNode1->get_text(&tem);
-		str = tem;
-		m_downSetTemperatureTime = _ttoi(str);// swscanf(str, _T("%d"), &m_downSetTemperatureTime);
-
-		spDoc->selectSingleNode(OLESTR("/root/room430temperature"), &spNode3);
-		spNode3->get_text(&tem);
-		str = tem;
-		m_430Room = _ttof(str);// swscanf(str, _T("%d"), &m_upTemperatureTime);
-
-		spDoc->selectSingleNode(OLESTR("/root/allowhandpause"), &spNode2);
-		spNode2->get_text(&tem);
-		m_allowHandPause = (CString)tem == "TRUE";
+		m_upTemperatureTime = _ttoi(getText(OLESTR("/root/uptemperaturetime")));
+		m_downSetTemperatureTime = _ttoi(getText(OLESTR("/root/downsettemperaturetime")));
+		m_url = getText(OLESTR("/root/url"));
+		m_430Room = _ttof(getText(OLESTR("/root/room430temperature")));
+		m_allowHandPause = getText(OLESTR("/root/allowhandpause")) == L"TRUE";
 
 		spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //得到node2下的所有子节点 
 
@@ -960,11 +1040,11 @@ void ChostDlg::loadXLM(void)
 			CComPtr<IXMLDOMNode> cpNode, spNodeAttrib0, spNodeAttrib1;
 			CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap;
 			BSTR a1, a2;
-			spNodeList1->get_item(i + 5, &cpNode);
+			spNodeList1->get_item(i + 6, &cpNode);
 			cpNode->get_attributes(&spNameNodeMap);
 			spNameNodeMap->get_item(0, &spNodeAttrib0);
 			spNodeAttrib0->get_text(&a1);
-			m_allowOperating[i] = (CString)a1 == "TRUE";
+			m_allowOperating[i] = (CString)a1 == L"TRUE";
 			spNameNodeMap->get_item(1, &spNodeAttrib1);
 			spNodeAttrib1->get_text(&a2);
 			str = a2;
@@ -977,7 +1057,7 @@ void ChostDlg::loadXLM(void)
 void ChostDlg::endDry(void)
 {
 	CString data, url,s;
-	url.Format(L"%sindex.php? cmd=%s",domain,L"DryMain");
+	url.Format(L"%sindex.php? cmd=%s/%d",m_url,L"DryMain",dryMainId);
 	data.Format(L"{\"item\":{\"drymain\":{\"state\":%d}}}",-1);
 	int result = httpClinet->HttpPut(url, data, s);
 	m_edtSendFarTimes++;
@@ -1008,6 +1088,27 @@ void ChostDlg::downSend(char cmd, WORD degress)
 	m_SerialPort.WriteToPort(send,5);
 	m_edtSendTimes++;
 	UpdateData(false);
+}
+
+// 取 xml 配制文件中 path 指定键对应的值
+CString ChostDlg::getText(BSTR path)
+{
+	CComPtr<IXMLDOMNode> spNode;
+	BSTR tem;
+	spDoc->selectSingleNode(path, &spNode);
+	spNode->get_text(&tem);
+	return tem;
+}
+
+// 设置 xml 配制文件中 path 指定键对应的值为 value
+void ChostDlg::putText(BSTR path, CString value)
+{
+	CComPtr<IXMLDOMNode> spNode;
+	BSTR tem;
+	spDoc->selectSingleNode(path, &spNode);
+	tem = value.AllocSysString();
+	spNode->put_text(tem);
+	SysFreeString(tem); // 用完释放
 }
 
 /**************************************************************************************
@@ -1058,32 +1159,23 @@ void ChostDlg::saveXML(void)
 	CString str;
 
 	// 上传实际温度时间间隔
-	spDoc->selectSingleNode(OLESTR("/root/uptemperaturetime"), &spNode);
 	str.Format(_T("%d"),m_upTemperatureTime);
-	tem = str.AllocSysString();
-	spNode->put_text(tem);
-	SysFreeString(tem); // 用完释放
+	putText(OLESTR("/root/uptemperaturetime"), str);
 
 	// 下传设定温度时间间隔
-	spDoc->selectSingleNode(OLESTR("/root/downsettemperaturetime"), &spNode1);
 	str.Format(_T("%d"), m_downSetTemperatureTime);
-	tem = str.AllocSysString();
-	spNode1->put_text(tem);
-	SysFreeString(tem); // 用完释放
+	putText(OLESTR("/root/downsettemperaturetime"), str);
+
+	// 网址
+	putText(OLESTR("/root/url"), m_url);
 
 	// msp430 芯片内温度与环境温度之差
-	spDoc->selectSingleNode(OLESTR("/root/room430temperature"), &spNode3);
 	str.Format(_T("%f"), m_430Room);
-	tem = str.AllocSysString();
-	spNode3->put_text(tem);
-	SysFreeString(tem); // 用完释放
+	putText(OLESTR("/root/room430temperature"), str);
 
 	// 是否允许手动暂停
-	spDoc->selectSingleNode(OLESTR("/root/allowhandpause"), &spNode2);
 	str = m_allowHandPause? "TRUE":"FALSE";
-	tem = str.AllocSysString();
-	spNode2->put_text(tem);
-	SysFreeString(tem);// 用完释放
+	putText(OLESTR("/root/allowhandpause"), str);
 
 	spDoc->selectNodes(OLESTR("/root/*"), &spNodeList1); //得到node2下的所有子节点 
 
@@ -1091,7 +1183,7 @@ void ChostDlg::saveXML(void)
 		CComPtr<IXMLDOMNode> cpNode,spNodeAttrib0,spNodeAttrib1;
 		CComPtr<IXMLDOMNamedNodeMap> spNameNodeMap; 
 		BSTR a1,a2;
-		spNodeList1->get_item(i+5, &cpNode); 
+		spNodeList1->get_item(i+6, &cpNode); 
 		cpNode->get_attributes(&spNameNodeMap);
 		spNameNodeMap->get_item(0, &spNodeAttrib0); 
 		CString astr = m_allowOperating[i]?  _T("TRUE"):_T("FALSE");
@@ -1120,26 +1212,35 @@ void ChostDlg::OnBnClickedButtonStart()
 	}
 }
 
+int ChostDlg::setLineState(void)
+{
+	int state;
+	if (m_dryLines[m_curLineNo][1]>0) state = 0;
+	else if (m_dryLines[m_curLineNo][1] == 0) state = 1;
+	else if (m_dryLines[m_curLineNo][1]<0) state = 2;
+
+	m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
+	return state;
+}
 /**************************************************************************************
 * 功  能：从给定的线段号和时间处开始干燥
 * 参  数：lineNo 整数，指定线段号
-*         lineTime 整数，指定时间(距lineNo起点的时间)
+*         lineTime 整数，指定时间(距lineNo起点的时间),单位：分钟
 * 返回值：void
 **************************************************************************************/
 void ChostDlg::goLine(int lineNo, int lineTime)
 {
 	m_curLineNo = lineNo;
 	if (m_curLineNo<m_dryLines.size()){ // 干燥未结束
-		int state;
-		if (m_dryLines[m_curLineNo][1]>0) state = 0;
-		else if (m_dryLines[m_curLineNo][1] == 0) state = 1;
-		else if (m_dryLines[m_curLineNo][1]<0) state = 2;
-
-		m_curLineTime = lineTime;
-		m_curLinePauseTime = 0;
+		setLineTime(lineTime);
+		setLinePauseTime(0);
+		m_lbSettingtemperature = getSettingTemperature(lineNo, lineTime);
 		downSend(cmdSetSettingTemperature, (WORD)(m_lbSettingtemperature * 16));// 传送当前设定温度给下位机
 
-		m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
+		int state = setLineState();
+
+		Sleep(100);
+		downSend(cmdSetLineNo, ((state + 1) << 8) | (m_curLineNo + 1));// 设置下位机当前段号为 1
 	}
 	else{
 		endDry();
@@ -1153,43 +1254,42 @@ void ChostDlg::goLine(int lineNo, int lineTime)
 **************************************************************************************/
 void ChostDlg::goNextLine(void)
 {
-	m_curLineNo++;
-	if (m_curLineNo<m_dryLines.size()){ // 干燥未结束
-		int state;
-		if (m_dryLines[m_curLineNo][1]>0) state = 0;
-		else if (m_dryLines[m_curLineNo][1] == 0) state = 1;
-		else if (m_dryLines[m_curLineNo][1]<0) state = 2;
-
-		m_curLineTime = 0;
-		m_curLinePauseTime = 0;
-		m_lbSettingtemperature = m_curLineNo ? m_dryLines[m_curLineNo - 1][0]:m_lbTemperature;
-		downSend(cmdSetSettingTemperature, (WORD)(m_lbSettingtemperature * 16));// 传送当前设定温度给下位机
-
-		m_edtArea.Format(_T("%d℃ %s"), m_dryLines[m_curLineNo][0], dryRunningStatus[state]);
-		Sleep(100);
-		downSend(cmdSetLineNo, ((state + 1) << 8) | (m_curLineNo+1));// 设置下位机当前段号为 1
-	}
-	else{
-		endDry();
-	}
+	goLine(++m_curLineNo, 0);
 }
 
+void ChostDlg::initSettingTemperature(WORD temperature)
+{
+	if (m_lbSettingtemperature==-100)
+		m_lbSettingtemperature = temperature*0.0625;
+	//for (int i = 0; i < m_fnTemperature.size();i++)
+		//if (memcmp((const void*)m_fnTemperature[i], (const void*)m_fnInitSettingTemperature, sizeof(FNTemperature))
+			//m_fnTemperature.erase(i);
+}
+
+void ChostDlg::showTemperature(WORD temperature)
+{
+	CString str;
+	str.Format(_T("%5.1f"), temperature*0.0625);
+	m_lbTemperature = _ttof(str);
+}
 /**************************************************************************************
  * 功  能：判断当前温度与设定温度的差值，根据不同的阀值要求做相应处理
  *         (用不同的颜色显示不同的温度差范围及是否触发声音报警)
  * 参  数：temperature 双精度浮点数，指定实际温度
  * 返回值：void 
  **************************************************************************************/
-void ChostDlg::adjuster(double temperature)
+void ChostDlg::adjuster(WORD temperature)
 {
+	double temper = temperature*0.0625;
 	m_Pause = FALSE;
-	if(temperature < m_lbSettingtemperature-m_allowOperatingValue[2]){
+
+	if (temper < m_lbSettingtemperature - m_allowOperatingValue[2]){
 		// 温度低
 		if(m_allowOperating[2])
 			Beep (1000,1000); 
 		m_edtRunning = "温度低";
 		m_runbrush = &m_yellowbrush;
-		if(temperature < m_lbSettingtemperature-m_allowOperatingValue[3]){
+		if (temper < m_lbSettingtemperature - m_allowOperatingValue[3]){
 			m_edtRunning = "温度低暂停";
 			m_runbrush = &m_redbrush;
 			if(m_allowOperating[3])
@@ -1197,13 +1297,14 @@ void ChostDlg::adjuster(double temperature)
 			if(m_allowOperating[0]) // 是否允许低温暂停
 				m_Pause = TRUE;
 		}
-	}else if(temperature > m_lbSettingtemperature+m_allowOperatingValue[2]){
+	}
+	else if (temper > m_lbSettingtemperature + m_allowOperatingValue[2]){
 		// 温度高
 		m_edtRunning = "温度高";
 		if(m_allowOperating[2])
 			Beep (1000,500);
 		m_runbrush = &m_yellowbrush;
-		if(temperature > m_lbSettingtemperature+m_allowOperatingValue[3]){
+		if (temper > m_lbSettingtemperature + m_allowOperatingValue[3]){
 			if(m_allowOperating[3])
 				Beep (2000,1000);
 			m_edtRunning = "温度高!!!";
@@ -1223,8 +1324,6 @@ void ChostDlg::adjuster(double temperature)
 void ChostDlg::savePoint(WORD temperature)
 {
 	CString s;
-	CString cmd = L"DryData";
-	CString data,url;
 	WORD record[4] = { m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
 	int size = sizeof(WORD) * 4;
 
@@ -1233,11 +1332,7 @@ void ChostDlg::savePoint(WORD temperature)
 	m_file.Write(record, size);
 	m_file.Flush();
 
-	// 传送到远程
-	url.Format(L"%sindex.php? cmd=%s", domain,cmd);
-	data.Format(L"{\"item\":{\"drydata\":{\"time\":%d,\"settingtemperature\":%d,\"temperature\":%d,\"mode\":%d}}}", record[2], record[0], record[1], record[3]);
-	int result = httpClinet->HttpPost(url, data, s);
-	m_edtSendFarTimes++;
+	saveDryDataToWeb(record);
 
 	// 显示到屏幕
 	toLP(record);
@@ -1275,7 +1370,7 @@ UINT ChostDlg::timeToSecond(CString time)
 	int minute;
 	hour = _ttoi(time.Left(pos));// swscanf(time.Left(pos), _T("%d"), &hour);
 	minute = _ttoi(time.Mid(pos + 1));// swscanf(time.Mid(pos + 1), _T("%d"), &minute);
-	return (hour * 60 + minute) % 60;
+	return (hour * 60 + minute) * 60;
 }
 
 
@@ -1319,25 +1414,34 @@ WORD* ChostDlg::toLP(WORD * record)
 }
 
 
+void ChostDlg::dryRuning(void)
+{
+	m_fnInitSettingTemperature = bind1st(mem_fun(&ChostDlg::initSettingTemperature), this);
+	m_fnTemperature.push_back(m_fnInitSettingTemperature);
+	SetTimer(1, 60000, NULL);
+	setCommCtrlEnable(TRUE, 18, 45);
+	GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+	SetDlgItemText(IDC_BUTTON_START, L"正在干燥...");
+}
+
 void ChostDlg::dryBegin(void)
 {
-	m_curLineNo = 0;
-	m_curLineTime = 0;
-	//m_TotalTime = 0;
 	m_TotalTimes = 0;
-	m_curLinePauseTime = 0;
 	m_TotalPauseTime = 0;
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo, 0x0);// 设置下位机当前段号为 0，置下位机为初始状态
 	Sleep(100);
-	downSend(cmdSetLineNo, 0x0101);// 设置下位机当前段号为 1
-	Sleep(100);
-	downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 设置下位机设定温度
-	if (processInterruptFile(m_curLineNo+1,m_curLineTime)){
-		SetTimer(1, 60000, NULL);
-		setCommCtrlEnable(TRUE, 18, 45);
-		GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
-		SetDlgItemText(IDC_BUTTON_START, L"正在干燥...");
+	m_curLineNo = -1;
+	//m_curLineTime = 0;
+	//m_curLinePauseTime = 0;
+	//downSend(cmdSetLineNo, 0x0101);// 设置下位机当前段号为 1
+	//Sleep(100);
+	//downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 设置下位机设定温度
+
+	goNextLine();
+
+	if (processInterruptFile(m_curLineNo, m_curLineTime)){
+		dryRuning();
 	}
 	else{
 		throw L"不能打开文件 " + m_filename;
@@ -1351,6 +1455,165 @@ void ChostDlg::OnEnSetfocusEditTemperature()
 	GetDlgItem(IDC_BUTTON_OPTION)->SetFocus();
 }
 
+
+// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+int ChostDlg::saveToWeb(CString url,CString data)
+{
+	CString s;
+	int result = httpClinet->HttpPost(url, data, s);
+	int id = strToJsonId(s);
+	if (id >= 0)
+		m_edtSendFarTimes++;
+	else if (!ignoreWeb)
+		switch (MessageBox(L"远程数据处理错误！请选择程序运行方式", L"网络错误", MB_ICONQUESTION | MB_ABORTRETRYIGNORE)){
+		case IDABORT:
+			exit(0);
+		case IDRETRY:
+			id = saveToWeb(url,data);
+			break;
+		case IDIGNORE:
+			ignoreWeb = true;
+			break;
+	}
+	return id;
+}
+
+// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+int ChostDlg::getMainIdFromWeb(void)
+{
+	CString cmd = L"DryMain";
+	CString s;
+	CString data, url;
+	data = L"cond%5B0%5D%5Bfield%5D=state&cond%5B0%5D%5Bvalue%5D=0&cond%5B0%5D%5Boperator%5D=eq&filter%5B0%5D=id";
+	url.Format(L"%sindex.php? cmd=%s&%s", m_url, cmd,data);
+	//data = L"{\"cond\":[{\"field\":\"state\",\"value\":0,\"operator\":\"eq\"}],\"filter\":[\"id\"]}";
+	int result = httpClinet->HttpGet(url, data, s);
+	return strToJsonId(s);
+}
+
+// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+void ChostDlg::saveDryMainToWeb(CTime tm)
+{
+	CString cmd = L"DryMain";
+	CString starttime = tm.Format(L"%Y-%m-%d %H:%M:%S");
+	CString _line_no;
+	CString data, url;
+
+	_line_no.Format(L"%d", 0); // 干燥曲线号
+	url.Format(L"%sindex.php? cmd=%s", m_url, cmd);
+	//data.Format(L"item%%5Bdrymain%%5D%%5Bstarttime%%5D=%s&item%%5Bdrymain%%5D%%5Blineno%%5D=%s&item%%5Bdrymain%%5D%%5Bstate%%5D=%d", starttime, _line_no, 0);
+	data.Format(L"{\"item\":{\"drymain\":{\"starttime\":\"%s\",\"lineno\":%s,\"state\":%d}}}", starttime, _line_no, 0);
+	dryMainId = saveToWeb(url, data);
+}
+
+// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+void ChostDlg::saveDryDataToWeb(WORD* record)
+{
+	if (dryMainId > -1){
+		CString cmd = L"DryData";
+		CString data, url;
+
+		// 传送到远程
+		url.Format(L"%sindex.php? cmd=%s", m_url, cmd);
+		//data.Format(L"item%%5Bdrydata%%5D%%5Bmainid%%5D=%d&item%%5Bdrydata%%5D%%5Btime%%5D=%d&item%%5Bdrydata%%5D%%5Bsettingtemperature%%5D=%d&item%%5Bdrydata%%5D%%5Btemperature%%5D=%d&item%%5Bdrydata%%5D%%5Bmode%%5D=%d",dryMainId, record[2], record[0], record[1], record[3]);
+		data.Format(L"{\"item\":{\"drydata\":{\"mainid\":%d,\"time\":%d,\"settingtemperature\":%d,\"temperature\":%d,\"mode\":%d}}}", dryMainId, record[2], record[0], record[1], record[3]);
+		saveToWeb(url, data);
+	}
+}
+
+// 取远程服务器返回数据中的 id 值
+long ChostDlg::strToJsonId(CString s)
+{
+	CString strId = L"\"id\":";
+	int extLen = 0;
+	int iId = s.Find(strId);
+	if (s.Find(L"\"", iId + strId.GetLength()) == iId + strId.GetLength() )
+		extLen = 1;
+	int iSpace = s.Find(L",",iId);
+	if (iSpace==-1)
+		iSpace = s.Find(L"}", iId);
+	CString cId = s.Mid(iId + strId.GetLength()+extLen, iSpace - iId - strId.GetLength()-2*extLen);
+	return  _ttoi(cId);
+}
+
+
+/**************************************************************
+* 设置并显示当前线段时间
+* 参数：time 整数，指定当前线段运行时间，单位：分钟
+* 返回值：void
+**************************************************************/
+void ChostDlg::setLineTime(int time)
+{
+	div_t h_m = div(time, 60);
+	m_curLineTime = time;
+	m_edtAreaTime.Format(timeFormat, h_m.quot, h_m.rem);
+}
+
+/**************************************************************
+* 设置并显示当前线段暂停时间
+* 参数：time 整数，指定当前线段暂停时间，单位：分钟
+* 返回值：void
+**************************************************************/
+void ChostDlg::setLinePauseTime(int time)
+{
+	div_t h_m = div(time, 60);
+	m_curLinePauseTime = time;
+	m_edtAreaPauseTime.Format(timeFormat, h_m.quot, h_m.rem);
+}
+
+/**************************************************************
+* 设置并显示干燥运行时间
+* 参数：time 整数，指定干燥运行时间，单位：10秒
+* 返回值：void
+**************************************************************/
+void ChostDlg::setRunTime(int time)
+{
+	div_t h_m = div(time/6, 60);
+	m_TotalTimes = time;
+	m_edtRunTime.Format(timeFormat, h_m.quot, h_m.rem);
+}
+
+/**************************************************************
+* 设置并显示干燥总暂停时间
+* 参数：time 整数，指定干燥总暂停时间，单位：分钟
+* 返回值：void
+**************************************************************/
+void ChostDlg::setRunPauseTime(int time)
+{
+	div_t h_m = div(time, 60);
+	m_TotalPauseTime = time;
+	m_edtRunPauseTime.Format(timeFormat, h_m.quot, h_m.rem);
+}
+
+
+/**************************************************************
+* 取给定段号、段时间和开始温度下的理论设定温度
+* 参数：lineNo - 整数，指定干燥段号
+*       lineTime - 整数，指定段时间，单位：分钟
+*       roomTemprature - 浮点数，指定干燥开始时的室温，单位：度
+* 返回值：double - 双精度浮点数，指定设定温度
+**************************************************************/
+double ChostDlg::getSettingTemperature(int lineNo, int lineTime, float roomTemperature)
+{
+	double tem;
+	if (lineNo % 2){
+		tem = m_dryLines[lineNo][0];
+	}
+	else{
+		float room;
+		if (lineNo == 0)
+			if (roomTemperature == -273){
+				float temper = _tstof(m_edTemperatureRoom);
+				room = (temper < m_lbTemperature) ? temper : m_lbTemperature;
+			}else
+				room = roomTemperature;
+		else
+			room = m_dryLines[lineNo - 1][0];
+		tem = room+m_dryLines[lineNo][1]*lineTime/60;
+	}
+	return tem;
+}
+
 // 中断程序处理记录文件
 int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 {
@@ -1359,8 +1622,8 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 	CString t_filename = NULL;
 	// 如记录文件已经存在，则保存已记录的内容到备份文件(每次中断保存在不同的文件中)
 	if (m_file.m_hFile != CFile::hFileNull && m_file.GetLength()){
-		m_file.Close();
 		m_filename = m_file.GetFileName();
+		m_file.Close();
 		CFileStatus status;
 		t_filename = m_filename;
 		int index = 0;
@@ -1372,17 +1635,7 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 
 	// 记录文件不存在，则根据当前日期创建文件名，并把开始日期、时间和干燥曲线编号发送到远程数据库
 	else{
-		CString s;
-		CString cmd = L"DryMain";
-		CString starttime = tm.Format(L"%Y-%m-%d %H:%M:%S");
-		CString _line_no;
-		CString data,url;
-		_line_no.Format(L"%d", 0); // 干燥曲线号
-		url.Format(L"%sindex.php? cmd=%s", domain, cmd);
-		data.Format(L"{\"item\":{\"drymain\":{\"starttime\":%s,\"lineno\":%s,\"state\":%d}}}", starttime, _line_no, 0);
-		int result = httpClinet->HttpPost(url, data, s);
-		m_edtSendFarTimes++;
-
+		saveDryMainToWeb(tm);
 		m_filename = tm.Format(L"dry%Y%m%d.dat");
 	}
 
@@ -1394,35 +1647,50 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 			CFile t_file;
 			int openState0 = t_file.Open(t_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
 			if (openState0){
+				double roomTemperature = m_430Room;
 				WORD record[4];// = { m_lbTemperature, m_lbTemperature, 0, 0 };
 				int size = sizeof(WORD) * 4;
 				unsigned int preTime = 0;
 				bool lineChange = FALSE;
-				ULONGLONG filesize = m_file.GetLength();
+				ULONGLONG filesize = t_file.GetLength();
 				int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
 
-				m_TotalTimes = 0;
-				m_lbSettingtemperature = m_lbTemperature;
+				//m_TotalTimes = 0;
+				//m_lbSettingtemperature = m_lbTemperature;
 
 				t_file.Seek(filehead.GetLength(), CFile::begin);
 				for (int i = 0; i < nSize; i++){
 					t_file.Read(record, size);
+					if (i == 0)
+						roomTemperature = record[0]*0.0625;
 					if (record[3] <= lineNo){
 						if (record[3] == lineNo && !lineChange){
-							preTime = record[2];
+							preTime = record[2]; // 段开始时间
 							lineChange = TRUE;
 						}
 						if (lineChange && (record[2] - preTime) >= lineTime){
 							m_lbSettingtemperature = record[0] * 0.0625;
-							m_TotalTimes = record[2];
+							setRunTime(i);
+							setLineTime(lineTime);
 							break;
 						}
 						m_file.Write(record, size);
-						t_file.Read(record, size);
+						//t_file.Read(record, size);
 					}
 				}
-				if (record[3] < lineNo){
-					int preSetTemperature = record[0];
+
+				if (record[3] == lineNo){
+					if (record[2]-preTime <= lineTime){
+						setRunTime(preTime + lineTime);
+						m_lbTemperature = roomTemperature;
+						goLine(lineNo, lineTime/6);
+						//m_lbSettingtemperature = getSettingTemperature(lineNo, lineTime, roomTemperature);
+						//setLineTime(lineTime/6);
+						//setLineState();
+					}
+				}
+				else if (record[3] <= lineNo){
+						int preSetTemperature = record[0];
 					int preTemperature = record[1];
 					preTime = record[2];
 					for (int i = record[3] + 1; i < lineNo; i++){
@@ -1435,16 +1703,16 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 						record[0] = m_dryLines[i][0];
 						record[1] = record[0];
 						record[3] = i;
-						m_file.Write(record, size);
+						//m_file.Write(record, size);
 						preTime = record[2];
 						preSetTemperature = record[0];
 					}
 					if (lineTime > 0){
 						record[2] = lineTime + preTime;
-						if (lineNo % 2){
+						if (lineNo % 2){// 保温
 							record[0] = m_dryLines[lineNo][0] * 16;
 						}
-						else{
+						else{// 升温
 							record[0] = (m_dryLines[lineNo][0] + m_dryLines[lineNo][0] * lineTime / 360) * 16;
 						}
 						record[1] = record[0];

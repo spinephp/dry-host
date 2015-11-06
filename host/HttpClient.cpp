@@ -41,9 +41,15 @@ int CHttpClient::ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPo
 {
 		CString strServer;
 		CString strObject;
+		CString strMethodOverride;
 		DWORD dwServiceType;
 		INTERNET_PORT nPort;
 		strResponse = "";
+
+		if (strMethod == L"PUT" || strMethod == L"DELETE"){
+			strMethodOverride.Format(L"X-HTTP-Method-Override:%s",strMethod);
+			strMethod = L"POST";
+		}
 
 		AfxParseURL(strUrl, dwServiceType, strServer, strObject, nPort);
 		if (AFX_INET_SERVICE_HTTP != dwServiceType && AFX_INET_SERVICE_HTTPS != dwServiceType)
@@ -58,16 +64,29 @@ int CHttpClient::ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPo
 			m_pFile = m_pConnection->OpenRequest(strMethod, strObject,
 			NULL, 1, NULL, NULL,
 			(dwServiceType == AFX_INET_SERVICE_HTTP ? NORMAL_REQUEST : SECURE_REQUEST));
+
+			//DWORD buflen = 0;
+			//CString strCookie;
+			//m_pFile->QueryInfo(HTTP_QUERY_SET_COOKIE, strCookie, &buflen);
+
 			//DWORD dwFlags;
 			//m_pFile->QueryOption(INTERNET_OPTION_SECURITY_FLAGS, dwFlags);
 			//dwFlags |= SECURITY_FLAG_IGNORE_UNKNOWN_CA;
 			////set web server option
 			//m_pFile->SetOption(INTERNET_OPTION_SECURITY_FLAGS, dwFlags);
 			m_pFile->AddRequestHeaders(L"Accept: *,*/*");
-			m_pFile->AddRequestHeaders(L"Accept-Language: utf-8");
+			m_pFile->AddRequestHeaders(L"Accept-Language:utf-8");
 			m_pFile->AddRequestHeaders(L"Content-Type: application/x-www-form-urlencoded");
+			//m_pFile->AddRequestHeaders(L"Content-Type: application/Json");
 			m_pFile->AddRequestHeaders(L"Accept-Encoding: gzip, deflate");
-			m_pFile->SendRequest(NULL, 0, (LPVOID)(LPCTSTR)strPostData, strPostData == NULL ? 0 : _tcslen(strPostData));
+
+			//m_pFile->AddRequestHeaders(L"Cache-Control: no-cache");
+			if (strMethodOverride != L"")
+				m_pFile->AddRequestHeaders(strMethodOverride);
+			int num = WideCharToMultiByte(CP_OEMCP, NULL, strPostData, -1, NULL, 0, NULL, FALSE);
+			char *pchar = new char[num];
+			WideCharToMultiByte(CP_OEMCP, NULL, strPostData, -1, pchar, num, NULL, FALSE);
+			m_pFile->SendRequest(NULL, 0, (LPVOID)pchar, num-1);
 			char szChars[BUFFER_SIZE + 1] = { 0 };
 			string strRawResponse = "";
 			UINT nReaded = 0;

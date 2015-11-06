@@ -69,4 +69,5 @@ public:
 	CTime m_startDryTime;
 	CDateTimeCtrl m_dtcDryStart;
 	afx_msg void OnBnClickedRadioStartanytime();
+	CString m_edtUrl;
 };

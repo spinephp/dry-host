@@ -30,10 +30,13 @@ const float temp430[] = { 28.3 };
 const float tempRoom[] = { 20.6 };
 
 const CString dryRunningStatus[] = { _T("升温"), _T("保温"), _T("降温"), _T("暂停"), _T("结束") };
-const CString domain = _T("http://www.yrr8.com/woo/");
+//const CString domain = _T("http://www.yrr8.com/woo/");
+//const CString domain = _T("http://127.0.0.1/woo/");
+const CString timeFormat = _T("%2d:%02d");
 struct dryRecord{
 	WORD record[4];
 };
+
 // ChostDlg 对话框
 class ChostDlg : public CDialogEx
 {
@@ -66,6 +69,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 private:
+	static bool ignoreWeb;
 	BYTE v_portin[13];
 	short int v_lastTemperature;
 	int v_index;
@@ -83,8 +87,11 @@ private:
 
 	CHttpClient *httpClinet; 
 
-	typedef std::tr1::function<void (float)> FNsettingTemperature;  
+	typedef std::function<void(WORD)> FNTemperature;
+	typedef std::function<void(float)> FNsettingTemperature;
+	vector<FNTemperature> m_fnTemperature;
 	vector<FNsettingTemperature> m_fnSettingTemperature;
+	FNTemperature m_fnSavePoint, m_fnAdjuster,m_fnInitSettingTemperature;
 
 	CDC m_dcMem,m_dcMemTime,m_dcMemHG; //缓冲DC和背景DC
 
@@ -97,7 +104,8 @@ private:
 	int m_nLeft, m_nTop, m_nWidth, m_nHeight; // 拆线绘图区域
 	int m_tLeft, m_tTop, m_tWidth, m_tHeight; // 时间刻度区域
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
-
+	void findLineStart(int lineno, WORD *record);
+	ULONGLONG findLinePoint(int time, WORD *record);
 public:
 	CString m_cbxPort;
 	CString m_cbxBaudrate;
@@ -133,6 +141,7 @@ public:
 	vector< vector<int> > m_dryLines;
 	int m_upTemperatureTime;  // 下位机向上位机传送实时温度时间间隔
 	int m_downSetTemperatureTime;  // 向下位机下达设定温度时间间隔
+	CString m_url;
 	BOOL m_allowHandPause; // 是否允许手动暂停
 	BOOL m_allowOperating[4]; // 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警
 	int m_allowOperatingValue[4]; // 允许操作条件下的温度阈值
@@ -142,22 +151,41 @@ public:
 private:
 	CComPtr<IXMLDOMDocument> spDoc; //DOM 
 	CComPtr<IXMLDOMElement> spRootEle; 
+	CString getText(BSTR path);
 	void loadXLM(void);
+	void putText(BSTR path, CString value);
+	void saveXML(void);
+
 	void endDry(void);
 public:
 	void downSend(char cmd, WORD degress);
-private:
-	void saveXML(void);
 public:
 	afx_msg void OnBnClickedButtonStart();
 private:
 	void goLine(int lineNo, int lineTime);
 	void goNextLine(void);
-public:
-	void adjuster(double temperature);
 private:
+	void runInterruptDlg(void);
+	int saveToWeb(CString url, CString data);
+	int getMainIdFromWeb(void);
+	void saveDryMainToWeb(CTime tm);
+	void saveDryDataToWeb(WORD* record);
+
+	long strToJsonId(CString s);
+
+	void setLineTime(int time);
+	void setRunTime(int time);
+	void setLinePauseTime(int time);
+	void setRunPauseTime(int time);
+	int setLineState(void);
+
+	void adjuster(WORD temperature);
 	void savePoint(WORD temperature);
+	void initSettingTemperature(WORD temperature);
+	void showTemperature(WORD temperature);
+
 	UINT timeToSecond(CString time);
+	void dryRuning(void);
 public:
 	afx_msg void OnNMThemeChangedScrollbarHfigure(NMHDR *pNMHDR, LRESULT *pResult);
 private:
@@ -170,9 +198,11 @@ public:
 	void dryBegin(void);
 	CButton m_btnStartDry;
 	afx_msg void OnEnSetfocusEditTemperature();
+	double getSettingTemperature(int lineNo, int lineTime, float roomTemperature = -273);
 	int processInterruptFile(int lineNo, int lineTime);
 	int m_edtSendTimes;
 	int m_edtReceviTimes;
 	int m_edtSendFarTimes;
 	int m_edtReciveValidTimes;
+	int dryMainId = -1;
 };
