@@ -385,6 +385,7 @@ void ChostDlg::runInterruptDlg(void)
 			m_TotalTimes = timeToSecond(dlg.m_edAllTime);
 			m_TotalPauseTime = 0;
 			m_curLineNo = dlg.m_curSelLine;
+			dryMainId = getMainIdFromWeb();
 			switch (dlg.m_rdAutoRun){
 			case 0:// 以文件
 				m_Pause = false;
@@ -433,7 +434,6 @@ void ChostDlg::runInterruptDlg(void)
 			UpdateData();
 			GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
 			setCommCtrlEnable(TRUE, 18, 38);
-			dryMainId = getMainIdFromWeb();
 		}
 		else if (nResponse == IDCANCEL)
 		{
@@ -1240,7 +1240,7 @@ void ChostDlg::goLine(int lineNo, int lineTime)
 		int state = setLineState();
 
 		Sleep(100);
-		downSend(cmdSetLineNo, ((state + 1) << 8) | (m_curLineNo + 1));// 设置下位机当前段号为 1
+		downSend(cmdSetLineNo, ((state + 1) << 8) | (m_curLineNo + 1));// 设置下位机当前段号
 	}
 	else{
 		endDry();
@@ -1340,11 +1340,11 @@ void ChostDlg::savePoint(WORD temperature)
 	if (pScrollBar){
 		ULONGLONG filesize = m_file.GetLength();
 		int nCurpos = pScrollBar->GetScrollPos();
-		int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
-		if (nSize > nCurpos+1){
+		//int nSize = (filesize - sizeof(dryHead)) / size;// m_ptrArray[0].GetSize();
+		if (m_TotalTimes > nCurpos + 1){
 			HPEN hPen1 = CreatePen(PS_SOLID, 1, m_bluecolor);
 			HPEN hPen2 = CreatePen(PS_SOLID, 1, m_redcolor);
-			m_dcMem.SelectObject(hPen1);
+			m_dcMem.SelectObject(hPen1); 
 			m_dcMem.MoveTo(m_record[2] - nCurpos, m_record[0]);
 			m_dcMem.LineTo(record[2] - nCurpos, record[0]);
 			m_dcMem.SelectObject(hPen2);
@@ -1362,7 +1362,7 @@ void ChostDlg::savePoint(WORD temperature)
 	m_restoreTemperaturePoint.clear();
 }
 
-// 把 time 从 HH:MM 格式的字符串转换成以分种为单位的无符号整数
+// 把 time 从 HH:MM 格式的字符串转换成以秒为单位的无符号整数
 UINT ChostDlg::timeToSecond(CString time)
 {
 	int pos = time.Find(':');
@@ -1478,7 +1478,11 @@ int ChostDlg::saveToWeb(CString url,CString data)
 	return id;
 }
 
-// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+/**************************************************************
+* 从远程数据库drymain表中取正在干燥记录的 id
+* 参数：void
+* 返回值：整数，指定正在干燥记录的 id
+**************************************************************/
 int ChostDlg::getMainIdFromWeb(void)
 {
 	CString cmd = L"DryMain";
@@ -1491,7 +1495,11 @@ int ChostDlg::getMainIdFromWeb(void)
 	return strToJsonId(s);
 }
 
-// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+/**************************************************************
+* 发送干燥数据（开始日期、时间和干燥曲线编号）到远程数据库
+* 参数：record 指向 WORD 数组的指针，指定干燥数据
+* 返回值：void
+**************************************************************/
 void ChostDlg::saveDryMainToWeb(CTime tm)
 {
 	CString cmd = L"DryMain";
@@ -1506,7 +1514,11 @@ void ChostDlg::saveDryMainToWeb(CTime tm)
 	dryMainId = saveToWeb(url, data);
 }
 
-// 并把开始日期、时间和干燥曲线编号发送到远程数据库
+/**************************************************************
+* 发送干燥数据到远程数据库
+* 参数：record 指向 WORD 数组的指针，指定干燥数据
+* 返回值：void
+**************************************************************/
 void ChostDlg::saveDryDataToWeb(WORD* record)
 {
 	if (dryMainId > -1){
@@ -1521,7 +1533,11 @@ void ChostDlg::saveDryDataToWeb(WORD* record)
 	}
 }
 
-// 取远程服务器返回数据中的 id 值
+/**************************************************************
+* 取远程服务器返回数据中的 id 值
+* 参数：s CString，指定远程服务器返回数据
+* 返回值：long, 提取的 id 值
+**************************************************************/
 long ChostDlg::strToJsonId(CString s)
 {
 	CString strId = L"\"id\":";
@@ -1535,7 +1551,6 @@ long ChostDlg::strToJsonId(CString s)
 	CString cId = s.Mid(iId + strId.GetLength()+extLen, iSpace - iId - strId.GetLength()-2*extLen);
 	return  _ttoi(cId);
 }
-
 
 /**************************************************************
 * 设置并显示当前线段时间
@@ -1669,9 +1684,6 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 							lineChange = TRUE;
 						}
 						if (lineChange && (record[2] - preTime) >= lineTime){
-							m_lbSettingtemperature = record[0] * 0.0625;
-							setRunTime(i);
-							setLineTime(lineTime);
 							break;
 						}
 						m_file.Write(record, size);
@@ -1679,55 +1691,52 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 					}
 				}
 
-				if (record[3] == lineNo){
-					if (record[2]-preTime <= lineTime){
-						setRunTime(preTime + lineTime);
-						m_lbTemperature = roomTemperature;
-						goLine(lineNo, lineTime/6);
-						//m_lbSettingtemperature = getSettingTemperature(lineNo, lineTime, roomTemperature);
-						//setLineTime(lineTime/6);
-						//setLineState();
-					}
+				if (record[3] == lineNo){ // 记录段号等于重新开始段号
+					//m_lbSettingtemperature = record[0] * 0.0625; // 置设定温度为记录的设定温度
+					setRunTime(preTime + lineTime - 1);
+					m_lbTemperature = roomTemperature;// 置设定温度为理论计算值
+					goLine(lineNo, lineTime/6);
 				}
-				else if (record[3] <= lineNo){
-						int preSetTemperature = record[0];
-					int preTemperature = record[1];
-					preTime = record[2];
-					for (int i = record[3] + 1; i < lineNo; i++){
+				else if (record[3] < lineNo){ // 记录段号小于重新开始段号
+					int preSetTemperature = record[0] * 0.0625;
+					int preLineTime = record[2]-preTime;
+
+					// 计算线段交点记录并写入文件
+					for (int i = record[3]; i < lineNo; i++){
 						if (i % 2){
-							record[2] = m_dryLines[i][2] * 60 * 6 + preTime;
+							record[2] += m_dryLines[i][2] * 60 * 6-preLineTime;
 						}
 						else{
-							record[2] = (m_dryLines[i][0] - preSetTemperature*0.0625) / m_dryLines[i][1] * 60 * 6 + preTime;
+							record[2] += (m_dryLines[i][0] - preSetTemperature) / m_dryLines[i][1] * 60 * 6;
 						}
-						record[0] = m_dryLines[i][0];
+						preLineTime = 0; // 第一次计算记录中断后置 0
+						preSetTemperature = m_dryLines[i][0];
+						record[0] = preSetTemperature * 16;
 						record[1] = record[0];
-						record[3] = i;
-						//m_file.Write(record, size);
-						preTime = record[2];
-						preSetTemperature = record[0];
-					}
-					if (lineTime > 0){
-						record[2] = lineTime + preTime;
-						if (lineNo % 2){// 保温
-							record[0] = m_dryLines[lineNo][0] * 16;
-						}
-						else{// 升温
-							record[0] = (m_dryLines[lineNo][0] + m_dryLines[lineNo][0] * lineTime / 360) * 16;
-						}
-						record[1] = record[0];
-						record[3] = lineNo;
+						record[3] = i+1;
 						m_file.Write(record, size);
+						saveDryDataToWeb(record);
 					}
-					m_lbSettingtemperature = record[0] * 0.0625;
-					m_TotalTimes = record[2];
+
+					// 计算断点运行开始点记录并写入文件
+					record[2] += lineTime;
+					record[0] = getSettingTemperature(lineNo, lineTime/6)*16;
+					record[1] = record[0];
+					record[3] = lineNo;
+					m_file.Write(record, size);
+					saveDryDataToWeb(record);
+
+					//m_lbSettingtemperature = record[0] * 0.0625;
+					//m_TotalTimes = record[2];
+					setRunTime(record[2]);
+					goLine(lineNo, lineTime / 6);
 				}
 				t_file.Close();
 			}
 		}
 		else{
-			m_lbSettingtemperature = m_lbTemperature;
-			m_edtArea.Format(_T("%d℃ %s"), m_dryLines[lineNo][0], dryRunningStatus[0]);
+			setRunTime(0);
+			goLine(lineNo, lineTime / 6);
 		}
 		UpdateData(FALSE);
 		m_file.Flush();
