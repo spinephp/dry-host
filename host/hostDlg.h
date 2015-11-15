@@ -60,7 +60,7 @@ protected:
 	HICON m_hIcon;
 
 	CBrush m_redbrush,m_bluebrush,m_greenbrush,m_yellowbrush,*m_runbrush;  
-	COLORREF m_redcolor,m_bluecolor,m_greencolor,m_textcolor;  
+	COLORREF m_redcolor,m_bluecolor,m_greencolor,m_textcolor,m_auxiliary_line_color;  
 
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
@@ -106,6 +106,8 @@ private:
 	BOOL GetSystemSerialComport(CArray<CString,CString> &comarray);
 	void findLineStart(int lineno, WORD *record);
 	ULONGLONG findLinePoint(int time, WORD *record);
+	void midDryData(WORD*rs, WORD*rm, WORD* re, WORD time);
+	BOOL m_drawGrad;
 public:
 	CString m_cbxPort;
 	CString m_cbxBaudrate;
@@ -143,9 +145,10 @@ public:
 	int m_downSetTemperatureTime;  // 向下位机下达设定温度时间间隔
 	CString m_url;
 	BOOL m_allowHandPause; // 是否允许手动暂停
-	BOOL m_allowOperating[4]; // 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警
-	int m_allowOperatingValue[4]; // 允许操作条件下的温度阈值
+	BOOL m_allowOperating[5]; // 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警 4-手动暂停
+	int m_allowOperatingValue[5]; // 允许操作条件下的温度阈值 5-允许接收温度连续出错次数
 	void DrawTemperatureLine(void);
+	void drawGrad(int dx);
 	afx_msg void OnBnClickedButtonOption();
 	virtual BOOL DestroyWindow();
 private:

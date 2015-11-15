@@ -13,13 +13,9 @@ IMPLEMENT_DYNAMIC(optionDlg, CDialogEx)
 optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(optionDlg::IDD, pParent)
 	, m_cbLowPause(_T("ÊÇ"))
-	, m_cbLowPauseValue(2)
-	, m_cbTemperatureFilterValue(0)
 	, m_cbTemperatureFilter(_T("·ñ"))
 	, m_cbOverHeratingWarning(_T("ÊÇ"))
-	, m_cbOverHeratingValue(1)
 	, m_cbUltraLimitAlarming(_T("ÊÇ"))
-	, m_cbUltraLimitAlarmingValue(2)
 	, m_cbHandPause(_T("·ñ"))
 	, m_edLineTemperature(_T(""))
 	, m_edLineHeatingRate(_T(""))
@@ -30,10 +26,6 @@ optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	, m_rdStartMode(0)
 	, m_edtUrl(_T(""))
 {
-	m_cbLowPauseValue = 3;
-	m_cbTemperatureFilterValue = 1;
-	m_cbOverHeratingValue = 2;
-	m_cbUltraLimitAlarmingValue = 3;
 }
 
 optionDlg::~optionDlg()
@@ -44,17 +36,18 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_CBString(pDX, IDC_COMBO_LOWPAUSE, m_cbLowPause);
-	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSEVALUE, m_cbLowPauseValue);
-	DDV_MinMaxInt(pDX, m_cbLowPauseValue, 1, 5);
-	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTERVALUE, m_cbTemperatureFilterValue);
-	DDV_MinMaxInt(pDX, m_cbTemperatureFilterValue, 1, 5);
+	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSEVALUE, m_allowOperatingValue[0]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[0], 0, 4);
+	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTERVALUE, m_allowOperatingValue[1]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[1], 0, 4);
 	DDX_CBString(pDX, IDC_COMBO_TEMPERATUREFILTER, m_cbTemperatureFilter);
 	DDX_CBString(pDX, IDC_COMBO_OVERHERATINGWarning, m_cbOverHeratingWarning);
-	DDX_CBIndex(pDX, IDC_COMBO_OVERHEATINGWARNINGVALUE, m_cbOverHeratingValue);
-	DDV_MinMaxInt(pDX, m_cbOverHeratingValue, 2, 4);
+	DDX_CBIndex(pDX, IDC_COMBO_OVERHEATINGWARNINGVALUE, m_allowOperatingValue[2]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[2], 1, 4);
 	DDX_CBString(pDX, IDC_COMBO_ULTRALIMITALARMING, m_cbUltraLimitAlarming);
-	DDX_CBIndex(pDX, IDC_COMBO_ULTRALIMITALARMVALUE, m_cbUltraLimitAlarmingValue);
-	DDV_MinMaxInt(pDX, m_cbUltraLimitAlarmingValue, 3, 5);
+	DDX_CBIndex(pDX, IDC_COMBO_ALLOWTEMPERATUREERRORTIMES, m_allowOperatingValue[4]);
+	DDX_CBIndex(pDX, IDC_COMBO_ULTRALIMITALARMVALUE, m_allowOperatingValue[3]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[3], 2, 4);
 	DDX_CBString(pDX, IDC_COMBO_HANDPAUSE, m_cbHandPause);
 	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE, m_edLineTemperature);
 	DDX_Text(pDX, IDC_EDIT_HEATINGRATE, m_edLineHeatingRate);
@@ -274,12 +267,18 @@ BOOL optionDlg::OnInitDialog()
 	loadXML();
 	m_dtcDryStart.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
 	if (!m_noDrring){
-		GetDlgItem(IDC_LIST_LINE)->EnableWindow(FALSE);
-		GetDlgItem(ID_ADD)->EnableWindow(FALSE);
-		GetDlgItem(IDC_EDIT_UPTEMPERATURETIME)->EnableWindow(FALSE);
-		GetDlgItem(IDC_EDIT_DOWNTEMPERATURETIME)->EnableWindow(FALSE);
-		GetDlgItem(IDC_RADIO_STARTANYTIME)->EnableWindow(FALSE);
-		GetDlgItem(IDC_RADIO_STARTSETINGTIME)->EnableWindow(FALSE);
+		int idcs[] = { 
+			IDC_LIST_LINE, 
+			ID_ADD, 
+			IDC_EDIT_UPTEMPERATURETIME, 
+			IDC_EDIT_DOWNTEMPERATURETIME,
+			IDC_EDIT_WWW,
+			IDC_RADIO_STARTANYTIME,
+			IDC_RADIO_STARTSETINGTIME,
+			0
+		};
+		for (int i = 0; idcs[i]>0; i++)
+			GetDlgItem(idcs[i])->EnableWindow(FALSE);
 
 	}
 	return TRUE;  // return TRUE unless you set the focus to a control

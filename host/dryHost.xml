@@ -5,10 +5,10 @@
 	<uptemperaturetime>10</uptemperaturetime>
 	<downsettemperaturetime>60</downsettemperaturetime>
 	<url>http://127.0.0.1/woo/</url>
-	<room430temperature>8.987500</room430temperature>
-	<allowhandpause>TRUE</allowhandpause>
-	<lowtemperaturepause allow="FALSE" value="3"/>
-	<temperaturefilter allow="TRUE" value="1"/>
-	<overheadingwarning allow="TRUE" value="2"/>
-	<ultralimitalarm allow="TRUE" value="3"/>
+	<room430temperature>9.900001</room430temperature>
+	<lowtemperaturepause allow="FALSE" value="2"/>
+	<temperaturefilter allow="TRUE" value="0"/>
+	<overheadingwarning allow="TRUE" value="1"/>
+	<ultralimitalarm allow="TRUE" value="2"/>
+	<allowhandpause allow="TRUE" value="1"/>
 </root>
