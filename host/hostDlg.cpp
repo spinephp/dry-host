@@ -1499,17 +1499,17 @@ int ChostDlg::saveToWeb(CString url,CString data)
 	int id = strToJsonId(s);
 	if (id >= 0)
 		m_edtSendFarTimes++;
-	else if (!ignoreWeb)
-		switch (MessageBox(L"远程数据处理错误！请选择程序运行方式", L"网络错误", MB_ICONQUESTION | MB_ABORTRETRYIGNORE)){
-		case IDABORT:
-			exit(0);
-		case IDRETRY:
-			id = saveToWeb(url,data);
-			break;
-		case IDIGNORE:
-			ignoreWeb = true;
-			break;
-	}
+	//else if (!ignoreWeb)
+	//	switch (MessageBox(L"远程数据处理错误！请选择程序运行方式", L"网络错误", MB_ICONQUESTION | MB_ABORTRETRYIGNORE)){
+	//	case IDABORT:
+	//		exit(0);
+	//	case IDRETRY:
+	//		id = saveToWeb(url,data);
+	//		break;
+	//	case IDIGNORE:
+	//		ignoreWeb = true;
+	//		break;
+	//}
 	return id;
 }
 
@@ -1544,8 +1544,8 @@ void ChostDlg::saveDryMainToWeb(CTime tm)
 
 	_line_no.Format(L"%d", 0); // 干燥曲线号
 	url.Format(L"%sindex.php? cmd=%s", m_url, cmd);
-	//data.Format(L"item%%5Bdrymain%%5D%%5Bstarttime%%5D=%s&item%%5Bdrymain%%5D%%5Blineno%%5D=%s&item%%5Bdrymain%%5D%%5Bstate%%5D=%d", starttime, _line_no, 0);
-	data.Format(L"{\"item\":{\"drymain\":{\"starttime\":\"%s\",\"lineno\":%s,\"state\":%d}}}", starttime, _line_no, 0);
+	data.Format(L"item%%5Bdrymain%%5D%%5Bstarttime%%5D=%s&item%%5Bdrymain%%5D%%5Blineno%%5D=%s&item%%5Bdrymain%%5D%%5Bstate%%5D=%d", starttime, _line_no, 0);
+	//data.Format(L"{\"item\":{\"drymain\":{\"starttime\":\"%s\",\"lineno\":%s,\"state\":%d}}}", starttime, _line_no, 0);
 	dryMainId = saveToWeb(url, data);
 }
 
@@ -1578,13 +1578,16 @@ long ChostDlg::strToJsonId(CString s)
 	CString strId = L"\"id\":";
 	int extLen = 0;
 	int iId = s.Find(strId);
-	if (s.Find(L"\"", iId + strId.GetLength()) == iId + strId.GetLength() )
-		extLen = 1;
-	int iSpace = s.Find(L",",iId);
-	if (iSpace==-1)
-		iSpace = s.Find(L"}", iId);
-	CString cId = s.Mid(iId + strId.GetLength()+extLen, iSpace - iId - strId.GetLength()-2*extLen);
-	return  _ttoi(cId);
+	if (iId != -1){
+		if (s.Find(L"\"", iId + strId.GetLength()) == iId + strId.GetLength())
+			extLen = 1;
+		int iSpace = s.Find(L",", iId);
+		if (iSpace == -1)
+			iSpace = s.Find(L"}", iId);
+		CString cId = s.Mid(iId + strId.GetLength() + extLen, iSpace - iId - strId.GetLength() - 2 * extLen);
+		return  _ttoi(cId);
+	}
+	return iId;
 }
 
 /**************************************************************

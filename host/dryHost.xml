@@ -4,8 +4,8 @@
 		<line><temperatureEle>50</temperatureEle><rate>5</rate><time>0</time></line><line><temperatureEle>50</temperatureEle><rate>0</rate><time>16</time></line><line><temperatureEle>90</temperatureEle><rate>5</rate><time>0</time></line><line><temperatureEle>90</temperatureEle><rate>0</rate><time>16</time></line><line><temperatureEle>120</temperatureEle><rate>5</rate><time>0</time></line><line><temperatureEle>120</temperatureEle><rate>0</rate><time>16</time></line></lines>
 	<uptemperaturetime>10</uptemperaturetime>
 	<downsettemperaturetime>60</downsettemperaturetime>
-	<url>http://127.0.0.1/woo/</url>
-	<room430temperature>9.900001</room430temperature>
+	<url>http://www.yrr8.com/woo/</url>
+	<room430temperature>13.700001</room430temperature>
 	<lowtemperaturepause allow="FALSE" value="2"/>
 	<temperaturefilter allow="TRUE" value="0"/>
 	<overheadingwarning allow="TRUE" value="1"/>

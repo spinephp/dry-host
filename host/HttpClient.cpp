@@ -62,8 +62,8 @@ int CHttpClient::ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPo
 			dwServiceType == AFX_INET_SERVICE_HTTP ? NORMAL_CONNECT : SECURE_CONNECT,
 			nPort);
 			m_pFile = m_pConnection->OpenRequest(strMethod, strObject,
-			NULL, 1, NULL, NULL,
-			(dwServiceType == AFX_INET_SERVICE_HTTP ? NORMAL_REQUEST : SECURE_REQUEST));
+				NULL, 1, NULL, TEXT("HTTP/1.1"),
+				 (dwServiceType == AFX_INET_SERVICE_HTTP ? NORMAL_REQUEST : SECURE_REQUEST));
 
 			//DWORD buflen = 0;
 			//CString strCookie;
@@ -77,8 +77,8 @@ int CHttpClient::ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPo
 			m_pFile->AddRequestHeaders(L"Accept: *,*/*");
 			m_pFile->AddRequestHeaders(L"Accept-Language:utf-8");
 			m_pFile->AddRequestHeaders(L"Content-Type: application/x-www-form-urlencoded");
-			//m_pFile->AddRequestHeaders(L"Content-Type: application/Json");
-			m_pFile->AddRequestHeaders(L"Accept-Encoding: gzip, deflate");
+			//m_pFile->AddRequestHeaders(L"Content-Type: application/json");
+			//m_pFile->AddRequestHeaders(L"Accept-Encoding: gzip, deflate,sdch");
 
 			//m_pFile->AddRequestHeaders(L"Cache-Control: no-cache");
 			if (strMethodOverride != L"")
@@ -87,6 +87,16 @@ int CHttpClient::ExecuteRequest(LPCTSTR strMethod, LPCTSTR strUrl, LPCTSTR strPo
 			char *pchar = new char[num];
 			WideCharToMultiByte(CP_OEMCP, NULL, strPostData, -1, pchar, num, NULL, FALSE);
 			m_pFile->SendRequest(NULL, 0, (LPVOID)pchar, num-1);
+			DWORD dwRet;
+			m_pFile->QueryInfoStatusCode(dwRet);
+
+			if (dwRet >= 300)
+			{
+				CString errText;
+				errText.Format(L"POST³ö´í£¬´íÎóÂë£º%d", dwRet);
+				AfxMessageBox(errText);
+			}
+
 			char szChars[BUFFER_SIZE + 1] = { 0 };
 			string strRawResponse = "";
 			UINT nReaded = 0;
