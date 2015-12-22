@@ -6,9 +6,10 @@
 	<downsettemperaturetime>60</downsettemperaturetime>
 	<url>http://www.yrr8.com/woo/</url>
 	<room430temperature>13.700001</room430temperature>
-	<lowtemperaturepause allow="FALSE" value="2"/>
-	<temperaturefilter allow="TRUE" value="0"/>
-	<overheadingwarning allow="TRUE" value="1"/>
-	<ultralimitalarm allow="TRUE" value="2"/>
-	<allowhandpause allow="TRUE" value="1"/>
+	<lowtemperaturepause allow="0" value="2"/>
+	<temperaturefilter allow="0" value="0"/>
+	<overheadingwarning allow="1" value="1"/>
+	<ultralimitalarm allow="1" value="2"/>
+	<allowhandpause allow="1" value="1"/>
+	<allowforecast allow="2" value="2"/>
 </root>

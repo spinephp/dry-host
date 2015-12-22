@@ -25,14 +25,9 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	CString m_cbLowPause;
-	CString m_cbTemperatureFilter;
-	CString m_cbOverHeratingWarning;
-	CString m_cbUltraLimitAlarming;
-	//BOOL m_allowOperating[5]; // 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警 4-手动暂停
-	int m_allowOperatingValue[5]; // 允许操作条件下的温度阈值 4-允许接收温度连续出错次数
+	int m_strAllowOperating[6];// 是否允许相应操作 0 - 低温暂停 1-温度滤波 2-超温警报 3-超温报警 4-手动暂停 5-允许预测
+	int m_allowOperatingValue[6]; // 允许操作条件下的温度阈值 4-允许接收温度连续出错次数 5-预测时间(分钟)
 	afx_msg void OnCbnSelchangeComboHandpause();
-	CString m_cbHandPause;
 	CString m_edLineTemperature;
 	CString m_edLineHeatingRate;
 	CString m_edLineTimeLength;

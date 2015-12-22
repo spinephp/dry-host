@@ -12,11 +12,6 @@ IMPLEMENT_DYNAMIC(optionDlg, CDialogEx)
 
 optionDlg::optionDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(optionDlg::IDD, pParent)
-	, m_cbLowPause(_T("ÊÇ"))
-	, m_cbTemperatureFilter(_T("·ñ"))
-	, m_cbOverHeratingWarning(_T("ÊÇ"))
-	, m_cbUltraLimitAlarming(_T("ÊÇ"))
-	, m_cbHandPause(_T("·ñ"))
 	, m_edLineTemperature(_T(""))
 	, m_edLineHeatingRate(_T(""))
 	, m_edLineTimeLength(_T(""))
@@ -35,20 +30,23 @@ optionDlg::~optionDlg()
 void optionDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_CBString(pDX, IDC_COMBO_LOWPAUSE, m_cbLowPause);
+	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSE, m_strAllowOperating[0]);
 	DDX_CBIndex(pDX, IDC_COMBO_LOWPAUSEVALUE, m_allowOperatingValue[0]);
 	DDV_MinMaxInt(pDX, m_allowOperatingValue[0], 0, 4);
 	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTERVALUE, m_allowOperatingValue[1]);
 	DDV_MinMaxInt(pDX, m_allowOperatingValue[1], 0, 4);
-	DDX_CBString(pDX, IDC_COMBO_TEMPERATUREFILTER, m_cbTemperatureFilter);
-	DDX_CBString(pDX, IDC_COMBO_OVERHERATINGWarning, m_cbOverHeratingWarning);
+	DDX_CBIndex(pDX, IDC_COMBO_TEMPERATUREFILTER, m_strAllowOperating[1]);
+	DDX_CBIndex(pDX, IDC_COMBO_OVERHERATINGWarning, m_strAllowOperating[2]);
 	DDX_CBIndex(pDX, IDC_COMBO_OVERHEATINGWARNINGVALUE, m_allowOperatingValue[2]);
 	DDV_MinMaxInt(pDX, m_allowOperatingValue[2], 1, 4);
-	DDX_CBString(pDX, IDC_COMBO_ULTRALIMITALARMING, m_cbUltraLimitAlarming);
+	DDX_CBIndex(pDX, IDC_COMBO_ULTRALIMITALARMING, m_strAllowOperating[3]);
 	DDX_CBIndex(pDX, IDC_COMBO_ALLOWTEMPERATUREERRORTIMES, m_allowOperatingValue[4]);
 	DDX_CBIndex(pDX, IDC_COMBO_ULTRALIMITALARMVALUE, m_allowOperatingValue[3]);
 	DDV_MinMaxInt(pDX, m_allowOperatingValue[3], 2, 4);
-	DDX_CBString(pDX, IDC_COMBO_HANDPAUSE, m_cbHandPause);
+	DDX_CBIndex(pDX, IDC_COMBO_FORECASTTIMELENGTH, m_allowOperatingValue[5]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[5], 0, 5);
+	DDX_CBIndex(pDX, IDC_COMBO_HANDPAUSE, m_strAllowOperating[4]);
+	DDX_CBIndex(pDX, IDC_COMBO_ALLOWFORECAST, m_strAllowOperating[5]);
 	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE, m_edLineTemperature);
 	DDX_Text(pDX, IDC_EDIT_HEATINGRATE, m_edLineHeatingRate);
 	DDX_Text(pDX, IDC_EDIT_TIMELENGTH, m_edLineTimeLength);

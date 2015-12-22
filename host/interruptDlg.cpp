@@ -76,7 +76,7 @@ BOOL interruptDlg::OnInitDialog()
 	
 	m_cbLines.SetCurSel(m_curSelLine);
 
-	bool fileNoOpened = m_file->m_hFile == CFile::hFileNull;
+	bool fileNoOpened = !(m_file && m_file->getOpenStatus());
 	GetDlgItem(IDC_BUTTON_OPENFILE)->EnableWindow(fileNoOpened);
 	//if (fileNoOpened)
 		//OnBnClickedButtonOpenfile();
@@ -104,7 +104,7 @@ BOOL interruptDlg::OnInitDialog()
 void interruptDlg::OnBnClickedOk()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (m_file->m_hFile == CFile::hFileNull){
+	if (!(m_file && m_file->getOpenStatus())){
 		OnBnClickedButtonOpenfile();
 		return;
 	}
@@ -112,7 +112,7 @@ void interruptDlg::OnBnClickedOk()
 	CDialogEx::OnOK();
 }
 
-void interruptDlg::setFile(CFile *file){
+void interruptDlg::setFile(recordFile *file){
 	m_file = file;
 }
 
@@ -125,8 +125,8 @@ void interruptDlg::OnBnClickedButtonOpenfile()
 	{
 		m_edBreakFile = opendialog.GetPathName();
 		UpdateData(FALSE);
-		int openState = m_file->Open(m_edBreakFile, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
-		if (openState){
+		m_file = new recordFile(m_edBreakFile, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
+		if (m_file->getOpenStatus()){
 			CDC *hdc = GetDC();
 			dryline->draw(*hdc, *m_file, (UINT)0);
 			ReleaseDC(hdc); 
@@ -158,7 +158,7 @@ void interruptDlg::drawDryLine()
 	//dryline->paint(&dc);
 	dryline->draw(&dc, m_dryLines, 20);
 	dryline->setStartPoint(&dc, 0);
-	if (m_file->m_hFile != CFile::hFileNull && m_file->GetLength())
+	if (m_file->recordCount())
 		dryline->draw(&dc, *m_file, (UINT)0);
 	delete dryline;
 }

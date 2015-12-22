@@ -2,7 +2,8 @@
 #include "afxwin.h"
 #include "dryLine.h"
 #include   <vector>   
-using   namespace   std;   
+#include "recordFile.h"
+using   namespace   std;
 
 
 // interruptDlg ¶Ô»°¿ò
@@ -43,10 +44,10 @@ public:
 	CString m_edBreakFile;
 	afx_msg void OnPaint();
 	afx_msg void OnBnClickedRadio5();
-	void setFile(CFile *file);
+	void setFile(recordFile *file);
 	virtual BOOL DestroyWindow();
+	recordFile *m_file;
 private:
-	CFile *m_file;
 	int lineNoToTime(int lineNo, int roomTemperature);
 	void drawDryLine(void);
 };
