@@ -5,7 +5,7 @@
 	<uptemperaturetime>10</uptemperaturetime>
 	<downsettemperaturetime>60</downsettemperaturetime>
 	<url>http://www.yrr8.com/woo/</url>
-	<room430temperature>13.700001</room430temperature>
+	<room430temperature>14.484587</room430temperature>
 	<lowtemperaturepause allow="0" value="2"/>
 	<temperaturefilter allow="0" value="0"/>
 	<overheadingwarning allow="1" value="1"/>

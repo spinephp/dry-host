@@ -267,15 +267,23 @@ private:
 	SubjectArray *m_pSubject;
 	int time;
 	FNOperating FSetTime;
+protected:
+	short int *data;
+	int FStartTime;
 public:
 	forecastModel(SubjectArray *pSubject) : m_pSubject(pSubject){
 		//FSetTime = bind1st(mem_fun(&forecastModel::setTime), this);
 		FSetTime = bind(&forecastModel::setTime, this, std::placeholders::_1);
 		pSubject->Attach(5, FSetTime);
+		data = nullptr;
 	}
 	~forecastModel()
 	{
 		m_pSubject->Detach(5, FSetTime);
+		if (data != nullptr){
+			delete[]data;
+			data = nullptr;
+		}
 	}
 	int getTime(void)
 	{
@@ -283,9 +291,21 @@ public:
 	}
 	void setTime(int time)
 	{
-		this->time = time;
+		if (this->time != time){
+			this->time = time;
+			if (data != nullptr)
+				delete[]data;
+			data = new short int[time * 10 * 6-2];
+		}
 	}
-	virtual double _forecast(short int record[12][4], int nstartpos, ChostDlg* pThis) = 0;
+	void showLine(ChostDlg *pThis)
+	{
+		pThis->m_dcMem.MoveTo(FStartTime - pThis->m_nScrollPos, data[0]);
+		for (int i = 1;i<this->time*10*6-2;i++)
+			pThis->m_dcMem.LineTo(i + FStartTime - pThis->m_nScrollPos, data[i]);
+
+	}
+	virtual double _forecast(short int record[12][4], ChostDlg* pThis) = 0;
 };
 
 class velocityForecast :
@@ -295,7 +315,7 @@ public:
 	velocityForecast(SubjectArray *pSubject) :forecastModel(pSubject){}
 
 	~velocityForecast(){}
-	virtual double _forecast(short int record[12][4], int nstartpos, ChostDlg* pThis)
+	virtual double _forecast(short int record[12][4], ChostDlg* pThis)
 	{
 		double v0, v, a, temper;
 		short int rd[4];
@@ -308,11 +328,10 @@ public:
 			rd[1] = temper;
 			rd[2] = t + record[3][2];
 			pThis->toLP(rd);
-			if (t == 2)
-				pThis->m_dcMem.MoveTo(rd[2] - pThis->m_nScrollPos, rd[1]);
-			else
-				pThis->m_dcMem.LineTo(rd[2] - pThis->m_nScrollPos, rd[1]);
+			data[t - 2] = rd[1];
 		}
+		FStartTime = 2 + record[3][2];
+		showLine(pThis);
 		return v;
 
 	}
@@ -452,7 +471,7 @@ public:
 	grayForecast(SubjectArray *pSubject) :forecastModel(pSubject){}
 
 	~grayForecast(){}
-	virtual double _forecast(short int record[FORECAST_DATA_LENGTH][4], int nstartpos, ChostDlg* pThis)
+	virtual double _forecast(short int record[FORECAST_DATA_LENGTH][4], ChostDlg* pThis)
 	{
 		double v0, v, a, temper;
 		short int rd[4];
@@ -514,11 +533,10 @@ public:
 			rd[1] = rpdata0[FORECAST_DATA_LENGTH + t];
 			rd[2] = t + record[3][2];
 			pThis->toLP(rd);
-			if (t == 2)
-				pThis->m_dcMem.MoveTo(rd[2] - pThis->m_nScrollPos, rd[1]);
-			else
-				pThis->m_dcMem.LineTo(rd[2] - pThis->m_nScrollPos, rd[1]);
+			this->data[t - 2] = rd[1];
 		}
+		FStartTime = 2 + record[3][2];
+		showLine(pThis);
 		delete[]rpdata1;
 		delete[]rpdata0;
 		return ep[0];

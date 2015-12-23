@@ -1154,13 +1154,11 @@ void ChostDlg::forecast(int nCurpos)
 		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
 		int oldRop = m_dcMem.SetROP2(R2_NOTXORPEN);
 		if (scrollpos != -1){
-			m_recordFile->seekRecord(-13, CFile::end);
-			m_recordFile->readRecord(record[0], 12);
-			m_pForecastMode->_forecast(record, scrollpos,this);
+			m_pForecastMode->showLine(this);
 		}
 		m_recordFile->seekRecord(-12, CFile::end);
 		m_recordFile->readRecord(record[0], 12);
-		v = m_pForecastMode->_forecast(record, nCurpos, this);
+		v = m_pForecastMode->_forecast(record, this);
 		m_dcMem.SetROP2(oldRop);
 		m_dcMem.SelectObject(oldPen);
 		DeleteObject(hPen);
