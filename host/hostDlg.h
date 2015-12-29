@@ -231,7 +231,10 @@ private:
 
 	void adjuster(WORD temperature);
 
+	int forecastSettingTempersturePoint[3][2];
+	void drawSettingTemperatureLine(int nCurpos);
 	void forecast(int nCurpos);
+	void showSettingTemperatureAsForecast(int nCurpos);
 	void savePoint(WORD temperature);
 	void initSettingTemperature(WORD temperature);
 	void showTemperature(WORD temperature);
@@ -473,10 +476,11 @@ public:
 	~grayForecast(){}
 	virtual double _forecast(short int record[FORECAST_DATA_LENGTH][4], ChostDlg* pThis)
 	{
-		double v0, v, a, temper;
+		//double v0, v, a, temper;
 		short int rd[4];
 		float p[FORECAST_DATA_LENGTH], sumData[FORECAST_DATA_LENGTH];
 		float aPar = 0, uPar = 0;
+		double v = static_cast<double>(record[FORECAST_DATA_LENGTH - 1][1] - record[1][1]) / (record[FORECAST_DATA_LENGTH-1][2] - record[1][2]);
 
 		toPData(record, p);
 
@@ -539,20 +543,20 @@ public:
 		showLine(pThis);
 		delete[]rpdata1;
 		delete[]rpdata0;
-		return ep[0];
+		return v;
 
 	}
 
 	void toPData(short int record[12][4], float *p)
 	{
-		int j = 11;
-		for (int i = 11; i >-1; i--){
-			*(p + j--) = record[i][0];
+		int j = FORECAST_DATA_LENGTH-1;
+		for (int i = j; i >-1; i--){
+			*(p + j--) = record[i][1];
 			if (j < 0) break;
 			if (i > 0){
 				int dt = record[i][2] - record[i - 1][2];
 				for (int k = 1; k < dt; k++){
-					*(p + j--) = record[i][0] - (record[i][0] - record[i - 1][0])*k / dt;
+					*(p + j--) = record[i][1] - (record[i][1] - record[i - 1][1])*k / dt;
 					if (j < 0) break;
 				}
 			}
@@ -564,7 +568,7 @@ public:
 	{
 		float sum{ *pdata };
 		*sumData = *pdata;
-		for (int i = 1; i<12; i++)
+		for (int i = 1; i<FORECAST_DATA_LENGTH; i++)
 		{
 			sum += *(pdata + i);
 			*(sumData + i) = sum;

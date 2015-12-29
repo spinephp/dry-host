@@ -909,10 +909,12 @@ void ChostDlg::DrawTemperatureLine(void)
 		ULONGLONG nCurpos = pScrollBar->GetScrollPos();
 		ULONGLONG nSizes = (m_recordFile == NULL)? 0:m_recordFile->recordCount();
 		drawGrad(nCurpos);
+
 		if (nSizes){
 			short int record[4];
 			ULONGLONG lPos;
 			BOOL drawing = true;
+			showSettingTemperatureAsForecast(nCurpos);
 			TRY{
 				HPEN hPen1 = CreatePen(PS_SOLID, 1, m_bluecolor);
 				HPEN hPen2 = CreatePen(PS_SOLID, 1, m_redcolor);
@@ -1138,6 +1140,78 @@ void ChostDlg::adjuster(WORD temperature)
 	}
 }
 
+void ChostDlg::drawSettingTemperatureLine(int nCurpos)
+{
+	HPEN hPen = CreatePen(PS_DASH, 1, RGB(200, 200, 255));
+	HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
+	m_dcMem.MoveTo(forecastSettingTempersturePoint[0][0] - nCurpos, forecastSettingTempersturePoint[0][1]);
+	m_dcMem.LineTo(forecastSettingTempersturePoint[1][0] - nCurpos, forecastSettingTempersturePoint[1][1]);
+	m_dcMem.LineTo(forecastSettingTempersturePoint[2][0] - nCurpos, forecastSettingTempersturePoint[2][1]);
+	m_dcMem.SelectObject(oldPen);
+	DeleteObject(hPen);
+}
+
+void ChostDlg::showSettingTemperatureAsForecast(int nCurpos)
+{
+	if (m_TotalTimes < nCurpos + m_nWidth){
+		vector< vector<int> >dryLines = m_xml->getdryLines();
+		float speed;
+		int time, time1, time2;
+		short int rd[4];
+		int lineNo = m_curLineNo;
+		float settingTemperature = m_lbSettingtemperature;
+		float t0;
+		if (m_TotalTimes < nCurpos){
+			time1 = m_TotalTimes - m_curLineTime;
+			do{
+				t0 = getSettingTemperature(lineNo, 0, -273);
+				speed = static_cast<float>(dryLines[lineNo][1]);
+				time = (speed ? (dryLines[lineNo][0] - t0) / speed : dryLines[lineNo][2]) * 360;
+				time1 += time;
+				lineNo++;
+			} while (time1 < nCurpos && lineNo < dryLines.size());
+			if (time1 < nCurpos && lineNo >= dryLines.size())
+				return;
+			time2 = nCurpos - time1 + time;
+			rd[0] = getSettingTemperature(--lineNo, (nCurpos-time1+time)/6, -273)*16;
+			rd[2] = nCurpos;
+		}
+		else{
+			time2 = m_curLineTime;
+			rd[0] = m_lbSettingtemperature*16;
+			rd[2] = m_TotalTimes;
+		}
+		toLP(rd);
+		HPEN hPen = CreatePen(PS_DASH, 1, RGB(200, 200, 255));
+		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
+		m_dcMem.MoveTo(rd[2] - nCurpos, rd[0]);
+		time1 = rd[2]-time2;
+		do{
+			t0 = getSettingTemperature(lineNo, 0, -273);
+			speed = static_cast<float>(dryLines[lineNo][1]);
+			time = (speed ? (dryLines[lineNo][0] - t0) / speed : dryLines[lineNo][2]) * 360;
+			time1 += time;
+			if (time1 < nCurpos + m_nWidth){
+				rd[0] = dryLines[lineNo][0] * 16;
+				rd[2] = time1;
+				toLP(rd);
+				m_dcMem.LineTo(rd[2] - nCurpos, rd[0]);
+				lineNo++;
+			}
+			else
+				break;
+		} while (lineNo < dryLines.size());
+		if (lineNo < dryLines.size()){
+			rd[0] = getSettingTemperature(lineNo, (time - time1 + nCurpos + m_nWidth)/6, -273)*16;
+			rd[2] = nCurpos + m_nWidth;
+			toLP(rd);
+			m_dcMem.LineTo(rd[2] - nCurpos, rd[0]);
+		}
+		m_dcMem.SelectObject(oldPen);
+		DeleteObject(hPen);
+	}
+}
+
 void ChostDlg::forecast(int nCurpos)
 {
 	static int scrollpos = -1;
@@ -1148,17 +1222,19 @@ void ChostDlg::forecast(int nCurpos)
 	}
 	int count = m_recordFile->recordCount();
 	forecastModel *m_pForecastMode = m_xml->getForecastModel();
-	if (count > 11 && m_pForecastMode){
-		short int record[12][4];
+	if (count > FORECAST_DATA_LENGTH-1 && m_pForecastMode){
+		short int record[FORECAST_DATA_LENGTH][4];
 		HPEN hPen = CreatePen(PS_DASH, 1, RGB(255,200,200));
 		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
 		int oldRop = m_dcMem.SetROP2(R2_NOTXORPEN);
 		if (scrollpos != -1){
 			m_pForecastMode->showLine(this);
+			//drawSettingTemperatureLine(nCurpos);
 		}
-		m_recordFile->seekRecord(-12, CFile::end);
-		m_recordFile->readRecord(record[0], 12);
+		m_recordFile->seekRecord(-FORECAST_DATA_LENGTH, CFile::end);
+		m_recordFile->readRecord(record[0], FORECAST_DATA_LENGTH);
 		v = m_pForecastMode->_forecast(record, this);
+		//showSettingTemperatureAsForecast(nCurpos);
 		m_dcMem.SetROP2(oldRop);
 		m_dcMem.SelectObject(oldPen);
 		DeleteObject(hPen);
