@@ -232,7 +232,6 @@ private:
 	void adjuster(WORD temperature);
 
 	int forecastSettingTempersturePoint[3][2];
-	void drawSettingTemperatureLine(int nCurpos);
 	void forecast(int nCurpos);
 	void showSettingTemperatureAsForecast(int nCurpos);
 	void savePoint(WORD temperature);
@@ -246,7 +245,7 @@ public:
 private:
 	void setCommCtrlEnable(bool enabled, int minIndex, int maxIndex);
 public:
-	int m_nScrollPos;
+	//int m_nScrollPos;
 	short int* toLP(short int * record);
 	CString m_edRealHeatingRate;
 	CString m_edSetHeatingRate;
@@ -298,14 +297,18 @@ public:
 			this->time = time;
 			if (data != nullptr)
 				delete[]data;
-			data = new short int[time * 10 * 6-2];
+			data = new short int[(time+1) * 10 * 6-2];
 		}
 	}
 	void showLine(ChostDlg *pThis)
 	{
-		pThis->m_dcMem.MoveTo(FStartTime - pThis->m_nScrollPos, data[0]);
-		for (int i = 1;i<this->time*10*6-2;i++)
-			pThis->m_dcMem.LineTo(i + FStartTime - pThis->m_nScrollPos, data[i]);
+		if (data != nullptr){
+			CScrollBar* pScrollBar = (CScrollBar*)pThis->GetDlgItem(IDC_SCROLLBAR_HFIGURE);
+			ULONGLONG nCurpos = pScrollBar->GetScrollPos();
+			pThis->m_dcMem.MoveTo(FStartTime - nCurpos, data[0]);
+			for (int i = 1; i < (this->time + 1) * 10 * 6 - 2; i++)
+				pThis->m_dcMem.LineTo(i + FStartTime - nCurpos, data[i]);
+		}
 
 	}
 	virtual double _forecast(short int record[12][4], ChostDlg* pThis) = 0;
@@ -326,12 +329,12 @@ public:
 		v = static_cast<double>(record[11][1] - record[1][1]) / (record[11][2] - record[1][2]);
 		a = (v - v0) / (record[11][2] - record[10][2]);
 		temper = record[3][1];
-		for (int t = 2; t < this->getTime() * 10 * 6; t++){
+		for (int t = 2; t < (this->getTime()+1) * 10 * 6; t++){
 			temper += v;// +a*(t + 0.5);
 			rd[1] = temper;
 			rd[2] = t + record[3][2];
 			pThis->toLP(rd);
-			data[t - 2] = rd[1];
+			this->data[t - 2] = rd[1];
 		}
 		FStartTime = 2 + record[3][2];
 		showLine(pThis);
@@ -374,11 +377,9 @@ public:
 		this->pval = new float[this->m*this->n];
 		for (int i = 0; i<this->m; i++)
 		{
-			for (int j = 0; j<this->n; j++)
-			{
-				if (j == 0) *(this->pval + i*this->n + j) = (*(p + i) + *(p + i + 1))*(-0.5);
-				else *(this->pval + i*this->n + j) = 1;
-			}
+			*(this->pval + i*this->n) = (*(p + i) + *(p + i + 1))*(-0.5);
+			for (int j = 1; j<this->n; j++)
+				*(this->pval + i*this->n + j) = 1;
 		}
 	}
 	void RevTrans(Matrix &after)
@@ -477,9 +478,9 @@ public:
 	virtual double _forecast(short int record[FORECAST_DATA_LENGTH][4], ChostDlg* pThis)
 	{
 		//double v0, v, a, temper;
-		short int rd[4];
+		short int rd[4]{};
 		float p[FORECAST_DATA_LENGTH], sumData[FORECAST_DATA_LENGTH];
-		float aPar = 0, uPar = 0;
+		float aPar{}, uPar{};
 		double v = static_cast<double>(record[FORECAST_DATA_LENGTH - 1][1] - record[1][1]) / (record[FORECAST_DATA_LENGTH-1][2] - record[1][2]);
 
 		toPData(record, p);
@@ -504,42 +505,31 @@ public:
 		float *data = RES.getData();
 		aPar = data[0];
 		uPar = data[1];
-		int m_Count = this->getTime() * 10 * 6;
+		int m_Count = (this->getTime()+1) * 10 * 6;
 		int totalcount = FORECAST_DATA_LENGTH + m_Count;
 		float * rpdata0, *rpdata1;
 		rpdata1 = new float[totalcount];
 		rpdata0 = new float[totalcount];
 
-		for (int i = 0; i<totalcount; i++)
-		{
-			if (i == 0) rpdata1[i] = sumData[i];
-			else
-			{
-				rpdata1[i] = (p[0] - uPar / aPar)*exp(aPar*i*(-1)) + uPar / aPar;
-			}
+		rpdata1[0] = sumData[0];
+		rpdata0[0] = p[0];
+		for (int i = 1; i < totalcount; i++){
+			rpdata1[i] = (p[0] - uPar / aPar)*exp(aPar*i*(-1)) + uPar / aPar;
+			rpdata0[i] = rpdata1[i] - rpdata1[i - 1];
 		}
 
-		for (int i = 0; i<totalcount; i++)
-		{
-			if (i == 0) rpdata0[i] = p[i];
-			else
-			{
-				rpdata0[i] = rpdata1[i] - rpdata1[i - 1];
-			}
-		}
-
-		float ep[FORECAST_DATA_LENGTH];
-		for (int i = 0; i<FORECAST_DATA_LENGTH; i++)
-		{
-			ep[i] = (p[i] - rpdata0[i]) / p[i] * 100;
-		}
+		//float ep[FORECAST_DATA_LENGTH];
+		//for (int i = 0; i<FORECAST_DATA_LENGTH; i++)
+		//{
+		//	ep[i] = (p[i] - rpdata0[i]) / p[i] * 100;
+		//}
 		for (int t = 2; t < m_Count; t++){
 			rd[1] = rpdata0[FORECAST_DATA_LENGTH + t];
-			rd[2] = t + record[3][2];
+			rd[2] = t + record[FORECAST_DATA_LENGTH-1][2];
 			pThis->toLP(rd);
 			this->data[t - 2] = rd[1];
 		}
-		FStartTime = 2 + record[3][2];
+		FStartTime = 2 + record[FORECAST_DATA_LENGTH-1][2];
 		showLine(pThis);
 		delete[]rpdata1;
 		delete[]rpdata0;

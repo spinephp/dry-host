@@ -11,5 +11,5 @@
 	<overheadingwarning allow="1" value="1"/>
 	<ultralimitalarm allow="1" value="2"/>
 	<allowhandpause allow="1" value="1"/>
-	<allowforecast allow="2" value="2"/>
+	<allowforecast allow="1" value="2"/>
 </root>

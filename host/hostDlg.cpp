@@ -254,7 +254,6 @@ BOOL ChostDlg::OnInitDialog()
 
 	CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 	pScrollBar->SetScrollRange(0,32767);//滑块移动的位置为0——34560；32767
-	m_nScrollPos = 0;
 	DrawTemperatureLine();
 	SetHStaff();
 	drawGrad(0);
@@ -340,6 +339,11 @@ void ChostDlg::OnPaint()
 	}
 }
 
+/*
+ * 绘制网格线
+ * @param dx - int ,指定滚动棒位置
+ * @return void
+ */
 void ChostDlg::drawGrad(int dx)
 {
 	if (!m_drawGrad)
@@ -650,21 +654,22 @@ void ChostDlg::midDryData(short int*rs, short int*rm, short int* re, WORD time)
 
 void  ChostDlg::OnTimer(UINT nIDEvent)
 {
-	float at = 0.0;
+	float at{};
 	CTime time;
 	vector< vector<int> >m_dryLines = m_xml->getdryLines();
 	switch(nIDEvent){
-	case 0:
+	case 0: // 10 秒计时一次
 		downSend(cmdGetTemperature,0);// 通知下位机发送当前实际温度
 		m_TotalTimes ++;
 		break;
-	case 1:
+	case 1: // 1 分钟计时一次
+		setRunTime(m_TotalTimes + 1);
 		if (m_Pause){ // 程序暂停
 			setLinePauseTime(m_curLinePauseTime+1);
 			setRunPauseTime(m_TotalPauseTime+1);
+			DrawTemperatureLine();
 		}else{ // 程序未暂停
 			setLineTime(m_curLineTime + 1);
-			setRunTime(m_TotalTimes + 1);
 			at = m_dryLines[m_curLineNo][1] / 60.0;
 		}
 		if(m_dryLines[m_curLineNo][1]){ // 升温
@@ -688,16 +693,11 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 		time = CTime::GetCurrentTime();
 		CTime m_startDryTime = m_xml->getStartDryTime();
 		if (m_startDryTime > time){ // 定时干燥时间未到
-			CTimeSpan t = m_startDryTime - time;
-			if (t.GetTotalSeconds() < 86400){ // 定时时间少于 1 天，显示倒计时时间
-				CString caption;
+			CString caption{ L"倒计时中..." };
+			CTimeSpan t{ m_startDryTime - time };
+			if (t.GetTotalSeconds() < 86400) // 定时时间少于 1 天，显示倒计时时间
 				caption.Format(L"%02d:%02d:%02d", t.GetHours(), t.GetMinutes(), t.GetSeconds());
-				int len = caption.GetLength();
-				SetDlgItemText(IDC_BUTTON_START, caption);
-			}
-			else{
-				SetDlgItemText(IDC_BUTTON_START, L"倒计时中...");
-			}
+			SetDlgItemText(IDC_BUTTON_START, caption);
 		}
 		else{ // 定时时间到，开始干燥
 			KillTimer(2);
@@ -841,33 +841,34 @@ HBRUSH ChostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void ChostDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	UINT tPos = m_nScrollPos;
+	int TempPos{ pScrollBar->GetScrollPos() };
+	int tPos = TempPos;
 	switch(nSBCode)
 	{
 	case SB_LEFT://拖动滑块
-		m_nScrollPos = 0;
+		TempPos = 0;
 		break;
 	case SB_RIGHT://拖动滑块
-		m_nScrollPos = 34560;
+		TempPos = 34560;
 		break;
 	case SB_THUMBPOSITION://拖动滑块
-		m_nScrollPos = nPos;
+		TempPos = nPos;
 		break;
 	case SB_LINELEFT://点击左边的箭头
-		if (m_nScrollPos > 0)
+		if (TempPos > 0)
 			{
-				m_nScrollPos--;
+				TempPos--;
 			}
 		break;
 		case SB_LINERIGHT://点击右边的箭头
-			if (m_nScrollPos<34560) // 32767
+			if (TempPos<34560) // 32767
 			{
-				m_nScrollPos++;
+				TempPos++;
 			}
 		break;
 	} 
-	if (tPos != m_nScrollPos){
-		pScrollBar->SetScrollPos(m_nScrollPos);
+	if (tPos != TempPos){
+		pScrollBar->SetScrollPos(TempPos);
 		DrawTemperatureLine();
 		SetHStaff();
 	}
@@ -907,7 +908,7 @@ void ChostDlg::DrawTemperatureLine(void)
 	if (hdc){
 		CScrollBar* pScrollBar = (CScrollBar*)GetDlgItem(IDC_SCROLLBAR_HFIGURE);
 		ULONGLONG nCurpos = pScrollBar->GetScrollPos();
-		ULONGLONG nSizes = (m_recordFile == NULL)? 0:m_recordFile->recordCount();
+		ULONGLONG nSizes = (m_recordFile == nullptr)? 0:m_recordFile->recordCount();
 		drawGrad(nCurpos);
 
 		if (nSizes){
@@ -966,9 +967,9 @@ BOOL ChostDlg::DestroyWindow()
 	delete m_xml;
 
 	// 关闭记录文件
-	if (m_recordFile != NULL){
+	if (m_recordFile != nullptr){
 		delete m_recordFile;
-		m_recordFile = NULL;
+		m_recordFile = nullptr;
 	}
 
 	m_dcMem.DeleteDC();
@@ -1004,7 +1005,7 @@ void ChostDlg::endDry(void)
 **************************************************************************************/
 void ChostDlg::downSend(char cmd, WORD degress)
 {
-	char send[5] = {0xfd,0x0,0x0,0x0,0xfe};
+	char send[]{0xfd,0x0,0x0,0x0,0xfe};
 	send[1] = cmd;
 	*(WORD*)(send+2) = degress;
 	m_SerialPort.WriteToPort(send,5);
@@ -1140,17 +1141,6 @@ void ChostDlg::adjuster(WORD temperature)
 	}
 }
 
-void ChostDlg::drawSettingTemperatureLine(int nCurpos)
-{
-	HPEN hPen = CreatePen(PS_DASH, 1, RGB(200, 200, 255));
-	HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
-	m_dcMem.MoveTo(forecastSettingTempersturePoint[0][0] - nCurpos, forecastSettingTempersturePoint[0][1]);
-	m_dcMem.LineTo(forecastSettingTempersturePoint[1][0] - nCurpos, forecastSettingTempersturePoint[1][1]);
-	m_dcMem.LineTo(forecastSettingTempersturePoint[2][0] - nCurpos, forecastSettingTempersturePoint[2][1]);
-	m_dcMem.SelectObject(oldPen);
-	DeleteObject(hPen);
-}
-
 void ChostDlg::showSettingTemperatureAsForecast(int nCurpos)
 {
 	if (m_TotalTimes < nCurpos + m_nWidth){
@@ -1258,7 +1248,7 @@ void ChostDlg::forecast(int nCurpos)
 void ChostDlg::savePoint(WORD temperature)
 {
 	CString s;
-	short int record[4] = { m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
+	short int record[]{ m_lbSettingtemperature * 16, temperature, m_TotalTimes, m_curLineNo };
 
 	// 保存到本地
 	m_recordFile->appendRecord(record);
@@ -1354,6 +1344,7 @@ void ChostDlg::dryRuning(void)
 	setCommCtrlEnable(TRUE, 18, 45);
 	GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
 	SetDlgItemText(IDC_BUTTON_START, L"正在干燥...");
+	showSettingTemperatureAsForecast(0);
 }
 
 void ChostDlg::dryBegin(void)
@@ -1575,7 +1566,7 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 		t_filename = m_recordFile->backup();
 		m_filename = m_recordFile->GetFileName();
 		delete m_recordFile;
-		m_recordFile = NULL;
+		m_recordFile = nullptr;
 		if (t_filename!=m_filename) CFile::Rename(m_filename, t_filename);
 
 	}
