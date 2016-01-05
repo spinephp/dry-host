@@ -553,6 +553,7 @@ LONG ChostDlg::OnComm(WPARAM ch, LPARAM port)
 				str.Format(L"DS18B20 温度为 %2.1f, 要对室温进行较准吗?", m_lbTemperature);
 				if (MessageBox(str, L"室温较准", MB_ICONQUESTION | MB_OKCANCEL) == IDOK){
 					m_xml->set430Temperature(m_temperature430 - m_lbTemperature);
+					m_temperatureRoom = m_lbTemperature;
 				}
 				UpdateData(FALSE);
 
@@ -1354,13 +1355,6 @@ void ChostDlg::dryBegin(void)
 	m_dataInvalid = 0;
 	downSend(cmdSetLineNo, 0x0);// 设置下位机当前段号为 0，置下位机为初始状态
 	m_curLineNo = 0;
-	//m_curLineTime = 0;
-	//m_curLinePauseTime = 0;
-	//downSend(cmdSetLineNo, 0x0101);// 设置下位机当前段号为 1
-	//Sleep(100);
-	//downSend(cmdSetSettingTemperature, (WORD)(m_lbTemperature * 16));// 设置下位机设定温度
-
-	//goNextLine();
 
 	if (processInterruptFile(m_curLineNo, m_curLineTime)){
 		dryRuning();
@@ -1544,8 +1538,7 @@ double ChostDlg::getSettingTemperature(int lineNo, int lineTime, float roomTempe
 		float room;
 		if (lineNo == 0)
 			if (roomTemperature == -273){
-				float temper = m_temperatureRoom;
-				room = (temper < m_lbTemperature) ? temper : m_lbTemperature;
+				room = (m_temperatureRoom < m_lbTemperature) ? m_temperatureRoom : m_lbTemperature;
 			}else
 				room = roomTemperature;
 		else
@@ -1661,4 +1654,58 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 		return 1;
 	}
 	return 0;
+}
+
+void ChostDlg::printReport(void)
+{
+	CPrintDialog print(false);
+	if (print.DoModal() == IDOK){
+		int page = 1;
+		CDC printed;
+		printed.Attach(print.GetPrinterDC());
+		DOCINFO pdoc;
+		pdoc.cbSize = sizeof(pdoc);
+		pdoc.lpszDocName = L"pdoc";
+		pdoc.lpszDatatype = NULL;
+		pdoc.fwType = NULL;
+		pdoc.lpszOutput = NULL;
+		if (printed.StartDoc(&pdoc) >= 0){
+			LOGFONT logfont;
+			memset(&logfont, 0, sizeof(LOGFONT));
+			logfont.lfHeight = 75;
+			CFont font;
+			CFont *oldfont = NULL;
+			int nLeft, nTop;
+			if (font.CreateFontIndirect(&logfont))
+				oldfont = (CFont*)printed.SelectObject(&font);
+			for (int j = 1; j <= page; j++)     {
+				CRect rect;
+				rect.left = 200;
+				rect.top = 1800;
+				rect.right = 4000 - 200;
+				rect.bottom = 2000 + 200;
+				dryLine *dryline = new dryLine((CPaintDC*)&printed, rect);
+				printed.StartPage();
+				int x = 500, y = 400;//A4纸，页面中的位置,横向为x轴，纵向是y轴,A4 maxX=4000 maxY=7000 建议按字符大小为75，每页安排40条纪录，初试纪录开始位置为x=500 y=200 
+				CString pageHead, pageBottom;
+				pageHead.Format(_T("干燥报告"));
+				printed.TextOut(1500, 100, pageHead); //打印页眉
+				CString title;//设置标题栏 
+				title.Format(_T("开始时间                结束时间                      干燥曲线"));
+				printed.TextOut(500, 200, title); //打印页眉
+				CString stt;
+				stt.Format(_T("______________________________________________________________________________________"));
+				printed.TextOut(500, 200 + 80, stt); //打印页眉     
+				dryline->draw(&printed, *m_recordFile, 0);
+				pageBottom.Format(_T("共%d页   第%d页"), page, j);
+				printed.TextOut(1500, y, pageBottom);
+				printed.EndPage();//此页结束
+			}
+			font.DeleteObject();
+			if (oldfont != NULL)
+				printed.SelectObject(oldfont);
+			printed.EndDoc();
+		}
+		printed.DeleteDC();
+	}
 }

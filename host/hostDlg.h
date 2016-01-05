@@ -128,6 +128,7 @@ private:
 	int m_smoothvalue; // 允许温度突变最大值
 
 	int m_curLineNo; // 当前干燥曲线段号
+	
 	UINT m_curLineTime; // 当前段号运行时间(分)
 	long int m_TotalTimes; // 干燥曲线运行总时间(10秒)
 	UINT m_curLinePauseTime; // 当前段号运行时间(分)
@@ -237,7 +238,7 @@ private:
 	void savePoint(WORD temperature);
 	void initSettingTemperature(WORD temperature);
 	void showTemperature(WORD temperature);
-
+	void printReport(void);
 	UINT timeToSecond(CString time);
 	void dryRuning(void);
 public:
@@ -906,3 +907,36 @@ public:
 	}
 };
 
+class dryLines
+{
+	short FCurrent;
+	long FTime;
+	vector< vector<int> > m_dryLines;
+public:
+	dryLines(int lineCount)
+	{
+	}
+	~dryLines()
+	{
+	}
+	short getCurrent(void)
+	{
+		return FCurrent;
+	}
+	void setCurrent(short lineNo)
+	{
+		FCurrent = lineNo;
+	}
+	UINT operator ++ (int)
+	{
+		FTime++;
+	}
+	vector< vector<int> >& getdryLines(void)
+	{
+		return m_dryLines;
+	}
+	UINT getTotal(void)
+	{
+
+	}
+};
