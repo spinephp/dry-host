@@ -12,4 +12,5 @@
 	<ultralimitalarm allow="1" value="2"/>
 	<allowhandpause allow="1" value="1"/>
 	<allowforecast allow="1" value="2"/>
+	<constanttemperature allow="1" value="3"/>
 </root>

@@ -77,6 +77,8 @@ ChostDlg::ChostDlg(CWnd* pParent /*=NULL*/)
 	, m_edtReceviTimes(0)
 	, m_edtSendFarTimes(0)
 	, m_edtReciveValidTimes(0)
+	, m_sameTemperature(0)
+	, m_sameTemperatureTimes(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -384,7 +386,7 @@ void ChostDlg::runInterruptDlg(void)
 		// 把干燥参数传递给断点对话框
 		div_t h_m;
 		interruptDlg dlg;
-		vector< vector<int> >m_dryLines = m_xml->getdryLines();
+		vector< vector<int> >&m_dryLines = m_xml->getdryLines();
 		for (int i = 0; i<m_dryLines.size(); i++){
 			CString str;
 			str.Format(_T("%d℃ %s"), m_dryLines[i][0], m_dryLines[i][1]>0 ? _T("升温") : (m_dryLines[i][1] == 0 ? _T("保温") : _T("降温")));
@@ -504,10 +506,8 @@ LONG ChostDlg::OnComm(WPARAM ch, LPARAM port)
 					v_lastTemperature = temperature;
 				if (m_xmlOption->get(1) && temperature > v_lastTemperature - m_smoothvalue && temperature < v_lastTemperature + m_smoothvalue || !m_xmlOption->get(1) && temperature > -800 && temperature < 3200){ // ，为正常，否则认为是由其它因素造成的误差
 					if(m_curLineNo>-1){// 干燥已开始
-						for (UINT i = 0; i<m_fnTemperature.size(); i++){
-							FNsettingTemperature fun = m_fnTemperature[i];
-							(fun)(temperature);
-						}
+						for (auto fnTemperature : m_fnTemperature)
+							(fnTemperature)(temperature);
 					}else{
 						m_edtRunning = L"未开始";
 						m_runbrush = NULL;
@@ -527,7 +527,6 @@ LONG ChostDlg::OnComm(WPARAM ch, LPARAM port)
 				UpdateData(FALSE);  //将接收到的字符显示在接受编辑框中
 				break;
 			case cmdGetRoomTemperature: // MSP430片内温度
-
 				temperature = *(short int*)(v_portin + 2);
 				temper = temperature / 1.45266 - 278.75;
 				m_temperature430 = temper;
@@ -537,10 +536,8 @@ LONG ChostDlg::OnComm(WPARAM ch, LPARAM port)
 			case cmdGetSettingTemperature: // 下位机当前的设定温度
 				temperature = *(short int*)(v_portin + 2);
 				temper = temperature*0.0625;
-				for(UINT i=0;i<m_fnSettingTemperature.size();i++){
-					FNsettingTemperature fun = m_fnSettingTemperature[i];
-					(fun)(temper);
-				}
+				for (auto fnSettingTemperature : m_fnSettingTemperature)
+					(fnSettingTemperature)(temper);
 				break;
 			case cmdGetLineNo: // 下位机当前段号
 				break;
@@ -657,7 +654,7 @@ void  ChostDlg::OnTimer(UINT nIDEvent)
 {
 	float at{};
 	CTime time;
-	vector< vector<int> >m_dryLines = m_xml->getdryLines();
+	vector< vector<int> >&m_dryLines{ m_xml->getdryLines() };
 	switch(nIDEvent){
 	case 0: // 10 秒计时一次
 		downSend(cmdGetTemperature,0);// 通知下位机发送当前实际温度
@@ -1030,7 +1027,7 @@ void ChostDlg::OnBnClickedButtonStart()
 int ChostDlg::setLineState(void)
 {
 	int state;
-	vector< vector<int> >m_dryLines = m_xml->getdryLines();
+	vector< vector<int> >&m_dryLines = m_xml->getdryLines();
 	if (m_dryLines[m_curLineNo][1]>0) state = 0;
 	else if (m_dryLines[m_curLineNo][1] == 0) state = 1;
 	else if (m_dryLines[m_curLineNo][1]<0) state = 2;
@@ -1047,7 +1044,7 @@ int ChostDlg::setLineState(void)
 void ChostDlg::goLine(int lineNo, int lineTime)
 {
 	m_curLineNo = lineNo;
-	vector< vector<int> >m_dryLines = m_xml->getdryLines();
+	vector< vector<int> >&m_dryLines = m_xml->getdryLines();
 	if (m_curLineNo<m_dryLines.size()){ // 干燥未结束
 		setLineTime(lineTime);
 		setLinePauseTime(0);
@@ -1109,6 +1106,19 @@ void ChostDlg::adjuster(WORD temperature)
 	SubjectArray *m_xmlValue = m_xml->getValues();
 	m_Pause = FALSE;
 
+	if (m_xmlOption->get(6)){ // 处理恒温故障
+		if (m_sameTemperature == temperature){
+			if (++m_sameTemperatureTimes > m_xmlValue->get(6)*10){ // 有可能下位机系统出现故障
+				Beep(2500, 300);
+				return;
+			}
+		}
+		else{
+			m_sameTemperature = temperature;
+			m_sameTemperatureTimes = 0;
+		}
+	}
+
 	if (temper < m_lbSettingtemperature - m_xmlValue->get(2)-1){
 		// 温度低
 		if(m_xmlOption->get(2))
@@ -1145,7 +1155,7 @@ void ChostDlg::adjuster(WORD temperature)
 void ChostDlg::showSettingTemperatureAsForecast(int nCurpos)
 {
 	if (m_TotalTimes < nCurpos + m_nWidth){
-		vector< vector<int> >dryLines = m_xml->getdryLines();
+		vector< vector<int> >&dryLines = m_xml->getdryLines();
 		float speed;
 		int time, time1, time2;
 		short int rd[4];
@@ -1219,12 +1229,13 @@ void ChostDlg::forecast(int nCurpos)
 		HPEN oldPen = (HPEN)m_dcMem.SelectObject(hPen);
 		int oldRop = m_dcMem.SetROP2(R2_NOTXORPEN);
 		if (scrollpos != -1){
-			m_pForecastMode->showLine(this);
+			m_pForecastMode->setCanvas(&m_dcMem, nCurpos);
+			m_pForecastMode->showLine();
 			//drawSettingTemperatureLine(nCurpos);
 		}
 		m_recordFile->seekRecord(-FORECAST_DATA_LENGTH, CFile::end);
 		m_recordFile->readRecord(record[0], FORECAST_DATA_LENGTH);
-		v = m_pForecastMode->_forecast(record, this);
+		v = m_pForecastMode->_forecast(record);
 		//showSettingTemperatureAsForecast(nCurpos);
 		m_dcMem.SetROP2(oldRop);
 		m_dcMem.SelectObject(oldPen);
@@ -1444,6 +1455,7 @@ void ChostDlg::saveDryDataToWeb(short int* record)
 		// 传送到远程
 		url.Format(L"%sindex.php? cmd=%s", m_xml->getUrl(), cmd);
 		//data.Format(L"item%%5Bdrydata%%5D%%5Bmainid%%5D=%d&item%%5Bdrydata%%5D%%5Btime%%5D=%d&item%%5Bdrydata%%5D%%5Bsettingtemperature%%5D=%d&item%%5Bdrydata%%5D%%5Btemperature%%5D=%d&item%%5Bdrydata%%5D%%5Bmode%%5D=%d",dryMainId, record[2], record[0], record[1], record[3]);
+		//data.Format(R"({"item":{"drydata":{"mainid":%d,"time":%d,"settingtemperature":%d,"temperature":%d,"mode":%d}}})", dryMainId, record[2], record[0], record[1], record[3]);
 		data.Format(L"{\"item\":{\"drydata\":{\"mainid\":%d,\"time\":%d,\"settingtemperature\":%d,\"temperature\":%d,\"mode\":%d}}}", dryMainId, record[2], record[0], record[1], record[3]);
 		saveToWeb(url, data);
 	}
@@ -1530,7 +1542,7 @@ void ChostDlg::setRunPauseTime(int time)
 double ChostDlg::getSettingTemperature(int lineNo, int lineTime, float roomTemperature)
 {
 	double tem;
-	vector< vector<int> >m_dryLines = m_xml->getdryLines();
+	vector< vector<int> >&m_dryLines = m_xml->getdryLines();
 	if (lineNo % 2){
 		tem = m_dryLines[lineNo][0];
 	}
@@ -1571,11 +1583,12 @@ int ChostDlg::processInterruptFile(int lineNo,int lineTime)
 	}
 
 	// 打开新记录文件
-	m_recordFile = new recordFile(m_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeReadWrite);
+	const UINT openflags{ CFile::typeBinary | CFile::modeCreate | CFile::modeReadWrite };
+	m_recordFile = new recordFile(m_filename, openflags);
 	if (m_recordFile->getOpenStatus()){ // 如新文件打开成功
 		m_recordFile->writeHeader(filehead); // 写文件头
 		if (!t_filename.IsEmpty()){ // 如旧记录文件有内容，则把其导入新记录文件
-			recordFile t_recordFile(t_filename, CFile::typeBinary | CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite);
+			recordFile t_recordFile(t_filename, openflags | CFile::modeNoTruncate);
 			if (t_recordFile.getOpenStatus()){
 				double roomTemperature = m_xml->get430Temperature();
 				short int record[4];// = { m_lbTemperature, m_lbTemperature, 0, 0 };
@@ -1687,14 +1700,11 @@ void ChostDlg::printReport(void)
 				dryLine *dryline = new dryLine((CPaintDC*)&printed, rect);
 				printed.StartPage();
 				int x = 500, y = 400;//A4纸，页面中的位置,横向为x轴，纵向是y轴,A4 maxX=4000 maxY=7000 建议按字符大小为75，每页安排40条纪录，初试纪录开始位置为x=500 y=200 
-				CString pageHead, pageBottom;
-				pageHead.Format(_T("干燥报告"));
+				CString pageHead{ L"干燥报告" }, pageBottom;
 				printed.TextOut(1500, 100, pageHead); //打印页眉
-				CString title;//设置标题栏 
-				title.Format(_T("开始时间                结束时间                      干燥曲线"));
+				CString title{ L"开始时间                结束时间                      干燥曲线" };
 				printed.TextOut(500, 200, title); //打印页眉
-				CString stt;
-				stt.Format(_T("______________________________________________________________________________________"));
+				CString stt{ L"______________________________________________________________________________________" };
 				printed.TextOut(500, 200 + 80, stt); //打印页眉     
 				dryline->draw(&printed, *m_recordFile, 0);
 				pageBottom.Format(_T("共%d页   第%d页"), page, j);

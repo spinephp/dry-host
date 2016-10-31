@@ -47,6 +47,9 @@ void optionDlg::DoDataExchange(CDataExchange* pDX)
 	DDV_MinMaxInt(pDX, m_allowOperatingValue[5], 0, 5);
 	DDX_CBIndex(pDX, IDC_COMBO_HANDPAUSE, m_strAllowOperating[4]);
 	DDX_CBIndex(pDX, IDC_COMBO_ALLOWFORECAST, m_strAllowOperating[5]);
+	DDX_CBIndex(pDX, IDC_COMBO_CONSTANTTEMPERATURE, m_strAllowOperating[6]);
+	DDX_CBIndex(pDX, IDC_COMBO_ALLOWCONSTANTTEMPERATURETIMES, m_allowOperatingValue[6]);
+	DDV_MinMaxInt(pDX, m_allowOperatingValue[6], 0, 5);
 	DDX_Text(pDX, IDC_EDIT_ENDTEMPERATURE, m_edLineTemperature);
 	DDX_Text(pDX, IDC_EDIT_HEATINGRATE, m_edLineHeatingRate);
 	DDX_Text(pDX, IDC_EDIT_TIMELENGTH, m_edLineTimeLength);

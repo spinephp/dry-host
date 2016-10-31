@@ -133,6 +133,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\dry-host\host\res\host.rc2" />
+    <None Include="ClassDiagram.cd" />
+    <None Include="ClassDiagram1.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\host.ico" />
